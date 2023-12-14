@@ -3,6 +3,7 @@
 .metals/
 .vscode/
 out/
+.antlr/
 ### Java template
 # Compiled class file
 *.class
