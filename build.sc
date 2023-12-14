@@ -8,17 +8,17 @@ trait CommonModule extends ScalaModule {
 }
 
 object prettier extends CommonModule {
-    def moduleDeps = Seq(parser)
+  def moduleDeps = Seq(parser)
 }
 
 object parser extends AntlrModule with CommonModule {
-    def antlrGrammarSources = T.sources {
-        Seq(millSourcePath / "src").map(PathRef(_))
-    }
+  def antlrGrammarSources = T.sources {
+    Seq(millSourcePath / "src").map(PathRef(_))
+  }
 
-    override def antlrPackage: Option[String] = Some("zombie.tvirus.parser")
+  override def antlrPackage: Option[String] = Some("zombie.tvirus.parser")
 
-    override def antlrGenerateVisitor: Boolean = true
+  override def antlrGenerateVisitor: Boolean = true
 }
 
 trait AntlrModule extends JavaModule {
@@ -77,14 +77,14 @@ trait AntlrModule extends JavaModule {
   override def ivyDeps = super.ivyDeps() ++ Seq(
     ivy"org.antlr:antlr4-runtime:4.13.1"
   )
-}
 
-class ToolListener extends ANTLRToolListener {
-  override def info(msg: String): Unit = throw new RuntimeException(msg)
-  override def error(msg: ANTLRMessage): Unit = throw new RuntimeException(
-    msg.toString
-  )
-  override def warning(msg: ANTLRMessage): Unit = throw new RuntimeException(
-    msg.toString
-  )
+  class ToolListener extends ANTLRToolListener {
+    override def info(msg: String): Unit = throw new RuntimeException(msg)
+    override def error(msg: ANTLRMessage): Unit = throw new RuntimeException(
+      msg.toString
+    )
+    override def warning(msg: ANTLRMessage): Unit = throw new RuntimeException(
+      msg.toString
+    )
+  }
 }
