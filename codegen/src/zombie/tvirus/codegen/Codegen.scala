@@ -15,7 +15,7 @@ def codegenOp(op: Op): String = op match
 
 def codegenExpr(core: CoreExpr): String = core match
   case CoreExpr.CLam(name, ty, body) => 
-    s"[&](${codegenTy(ty)} $name) {return (${codegenExpr(body)});}"
+    s"[=](${codegenTy(ty)} $name) {return (${codegenExpr(body)});}"
   case CoreExpr.CApp(fun, arg) => 
     s"(${codegenExpr(fun)})(${codegenExpr(arg)})"
   case CoreExpr.CInt(value) => value.toString()
