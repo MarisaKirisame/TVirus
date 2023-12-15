@@ -5,7 +5,7 @@ import scala.collection.immutable
 
 def flatten(d: Description): Description = d match {
   case Nil() => Nil()
-  case Gap() => Text(" ")
+  case Line() => Text(" ")
   case Text(text) => Text(text)
   case Concat(left, right) => (flatten(left), flatten(right)) match {
     case (Nil(), right) => right
@@ -24,7 +24,7 @@ def best(width: Int, d: Description): Document = {
       val (indent, description) = head
       description match
         case Nil() => helper(current, tail)
-        case Gap() => DLine(indent, ()=>helper(current, tail))
+        case Line() => DLine(indent, ()=>helper(current, tail))
         case Text(text) => DText(text, ()=>helper(current + text.length, tail))
         case Concat(left, right) => helper(current, (indent, left)::(indent, right)::tail)
         case Nest(i, description) => helper(current, (indent + i, description)::tail)

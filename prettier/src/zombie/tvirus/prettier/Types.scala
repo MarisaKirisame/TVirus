@@ -3,7 +3,7 @@ package zombie.tvirus.prettier
 sealed abstract class Description
 
 case class Nil() extends Description
-case class Gap() extends Description
+case class Line() extends Description
 case class Text(text: String) extends Description
 case class Concat(left: Description, right: Description) extends Description
 case class Union(left: Description, right: Description) extends Description
