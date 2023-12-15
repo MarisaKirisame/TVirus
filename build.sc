@@ -8,6 +8,6 @@ object parser extends AntlrModule with CommonModule {
   override def antlrPackage: Option[String] = Some("zombie.tvirus.parser.generated")
 }
 
-object prettier extends CommonModule {
+object codegen extends CommonModule {
   def moduleDeps = Seq(parser)
 }
