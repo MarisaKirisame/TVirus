@@ -1,8 +1,6 @@
 package zombie.tvirus.codegen
 
 import zombie.tvirus.parser.{Expr, Op}
-import scala.annotation.threadUnsafe
-import scala.util.Random
 
 class TypeTable:
   private var table: Map[String, Type] = Map()
