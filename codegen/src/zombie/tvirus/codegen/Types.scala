@@ -4,7 +4,7 @@ import zombie.tvirus.parser.Op
 
 enum Type: 
   case TInt()
-  case Auto()
+  case TVar(name: String)
   case Func(from: Type, target: Type)
 
 enum CoreExpr:

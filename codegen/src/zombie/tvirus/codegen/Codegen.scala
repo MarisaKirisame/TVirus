@@ -4,7 +4,7 @@ import zombie.tvirus.parser.Op
 
 def codegenTy(ty: Type): String = ty match
   case Type.TInt() => "int"
-  case Type.Auto() => "auto"
+  case Type.TVar(_) => "auto"
   case Type.Func(from, target) => 
     s"std::function<${codegenTy(target)}(${codegenTy(from)})>"
 
