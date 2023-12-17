@@ -11,3 +11,9 @@ object parser extends AntlrModule with CommonModule {
 object codegen extends CommonModule {
   def moduleDeps = Seq(parser)
 }
+
+object cli extends CommonModule {
+  def ivyDeps = Agg(
+    ivy"com.lihaoyi::mainargs:0.5.4"
+  )
+}
