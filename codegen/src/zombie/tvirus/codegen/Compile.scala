@@ -107,7 +107,7 @@ def compileWithEnv(expr: Expr, env: Env, type_table: TypeTable)
 
         for 
           body_result <- compileWithEnv(body, newEnv, type_table)
-        yield (CoreExpr.CLam("x", Type.TVar(arg), body_result._1), 
+        yield (CoreExpr.CLam(x, Type.TVar(arg), body_result._1),
                Type.Func(Type.TVar(arg), body_result._2))
       }
   }
