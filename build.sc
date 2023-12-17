@@ -16,4 +16,6 @@ object cli extends CommonModule {
   def ivyDeps = Agg(
     ivy"com.lihaoyi::mainargs:0.5.4"
   )
+
+  def moduleDeps = Seq(parser, codegen)
 }
