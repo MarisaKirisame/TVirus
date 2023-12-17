@@ -11,3 +11,6 @@ object parser extends AntlrModule with CommonModule {
 object codegen extends CommonModule {
   def moduleDeps = Seq(parser)
 }
+
+object prettier extends CommonModule {
+}
