@@ -24,12 +24,13 @@ def main(): Unit = {
   
   println(codegen(core))
     
-  val expr = Expr.App(
+  val expr = Expr.App(Expr.App(
     Expr.Abs("x",
-      Expr.Calc(Expr.Var("x"), Op.MINUS, Expr.Int(8))
+      Expr.Abs("y",
+        Expr.Calc(Expr.Var("x"), Op.MINUS, Expr.Var("y"))
+      )
     ),
-    Expr.Int(50)
-  )
+    Expr.Int(50)), Expr.Int(8))
 
   val exprFail = Expr.App(
     Expr.Int(42),
