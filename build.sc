@@ -12,6 +12,9 @@ object codegen extends CommonModule {
   def moduleDeps = Seq(parser)
 }
 
+object prettier extends CommonModule {
+}
+
 object cli extends CommonModule {
   def ivyDeps = Agg(
     ivy"com.lihaoyi::mainargs:0.5.4"
