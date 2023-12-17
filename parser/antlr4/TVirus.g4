@@ -12,6 +12,8 @@ MINUS       :   '-';
 MULT        :   '*';
 DOT         :   '.';
 
+TMP         :   '<=>';
+
 EQ          :   '=';
 NEQ         :   '!=';
 GT          :   '>';
@@ -37,7 +39,7 @@ expr
     |   VAR                             #variable
     |   INT                             #integer
     |   expr op=(PLUS|MINUS|MULT) expr  #calculation
-    |   expr WS expr                    #application
+    |   expr expr                       #application
     |   LAMBDA VAR DOT expr             #abstraction
     |   REC WS VAR WS VAR DOT expr      #abstractionRec
     ;
