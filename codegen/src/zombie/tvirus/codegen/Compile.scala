@@ -32,8 +32,8 @@ class TypeTable:
   }
 
   def freshen(name: String): String = {
-    if table.get(name) == None then {
-      table.updated(name, Type.TVar(name))
+    if !table.contains(name) then {
+      table = table.updated(name, Type.TVar(name))
       name
     }
     else 
@@ -96,7 +96,7 @@ def compileWithEnv(expr: Expr, env: Env, type_table: TypeTable)
         for 
           fun <- compileWithEnv(f, env, type_table)
           arg <- compileWithEnv(x, env, type_table)
-          _ <- failIf(!unifyType(fun._2, Type.Func(Type.TVar(target), arg._2), type_table), 
+          _ <- failIf(!unifyType(fun._2, Type.Func(arg._2, Type.TVar(target)), type_table), 
                       s"fail to unify ${fun._2} as a funtion type with ${arg._2} from")
         yield (CoreExpr.CApp(fun._1, arg._1), type_table.visit(target))
       }
