@@ -41,5 +41,4 @@ expr
     |   expr op=(PLUS|MINUS|MULT) expr  #calculation
     |   expr expr                       #application
     |   LAMBDA VAR DOT expr             #abstraction
-    |   REC WS VAR WS VAR DOT expr      #abstractionRec
     ;

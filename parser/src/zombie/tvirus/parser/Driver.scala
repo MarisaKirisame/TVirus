@@ -31,13 +31,6 @@ class TVirusExprVisitor extends TVirusBaseVisitor[Expr] {
 
   override def visitInteger(ctx: IntegerContext): Expr =
     Expr.Int(Integer.parseInt(ctx.INT().getSymbol().getText()))
-
-  override def visitAbstractionRec(ctx: AbstractionRecContext): Expr =
-    Expr.AbsRec(
-      ctx.VAR(0).getSymbol().getText(),
-      ctx.VAR(1).getSymbol().getText(),
-      visit(ctx.expr())
-    )
 }
 
 private def visitorInstance = TVirusExprVisitor()
