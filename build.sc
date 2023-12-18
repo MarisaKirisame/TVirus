@@ -5,10 +5,15 @@ object parser extends AntlrModule with CommonModule {
   override def antlrGrammarSources = T.sources {
     Seq(millSourcePath / "antlr4").map(PathRef(_))
   }
-  override def antlrPackage: Option[String] = Some("zombie.tvirus.parser.generated")
+  override def antlrPackage = Some("zombie.tvirus.parser.generated")
+  override def antlrGenerateVisitor = true
 }
 
 object codegen extends CommonModule {
+  def ivyDeps = Agg(
+    ivy"dev.zio::zio-prelude:1.0.0-RC21"
+  )
+
   def moduleDeps = Seq(parser)
 }
 

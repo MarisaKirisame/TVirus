@@ -10,8 +10,8 @@ trait CommonModule extends ScalaModule {
 trait AntlrModule extends JavaModule {
   def antlrGrammarSources: Target[Seq[PathRef]]
   def antlrPackage: Option[String] = None
-  def antlrGenerateVisitor: Boolean = true
-  def antlrGenerateListener: Boolean = true
+  def antlrGenerateVisitor: Boolean = false
+  def antlrGenerateListener: Boolean = false
 
   def antlrGrammarSourceFiles = T {
     antlrGrammarSources()
@@ -34,14 +34,22 @@ trait AntlrModule extends JavaModule {
     antlrToolArgs.appendAll(
       antlrGrammarSourceFiles().map(_.path.relativeTo(os.pwd).toString)
     )
+
     antlrToolArgs.append("-o")
     antlrToolArgs.append(s"${T.dest}")
-    if (antlrGenerateVisitor) {
-      antlrToolArgs.append("-visitor")
+    antlrToolArgs.append("-Xexact-output-dir")
+
+    antlrToolArgs.append("-lib")
+    antlrToolArgs.append(s"${T.dest}")
+
+    if (!antlrGenerateVisitor) {
+      antlrToolArgs.append("-no-visitor")
     }
-    if (antlrGenerateListener) {
-      antlrToolArgs.append("-listener")
+
+    if (!antlrGenerateListener) {
+      antlrToolArgs.append("-no-listener")
     }
+
     if (antlrPackage.isDefined) {
       antlrToolArgs.append("-package")
       antlrToolArgs.append(antlrPackage.get)
