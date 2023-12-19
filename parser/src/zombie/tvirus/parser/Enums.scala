@@ -8,10 +8,11 @@ enum PrimType:
 
 enum Type:
     case Prim(t: PrimType)
-    case Defined(name: String)
-    case Product(x: Type, y: Type)
+    case Var(name: String)
+    case App(f: Type, x: Type)
+    case Prod(x: Type, y: Type)
     case Sum(x: Type, y: Type)
-    case Function(x: Type, r: Type)
+    case Func(x: Type, r: Type)
 
 enum Scheme:
     case Mono(t: Type)
@@ -19,9 +20,9 @@ enum Scheme:
 
 case class TBind(name: String, t: Option[Type])
 case class SBind(name: String, s: Option[Scheme])
-case class CBind(name: String, args: Option[Type])
+case class CBind(name: String, args: Seq[Type])
 
-case class TypeDecl(name: String, cons: Seq[CBind])
+case class TypeDecl(name: String, xs: Seq[String], cons: Seq[CBind])
 
 enum Expr:
     case Prim(op: PrimOp, left: Expr, right: Expr)
@@ -30,6 +31,7 @@ enum Expr:
     case App(f: Expr, x: Expr)
     case Abs(xs: Seq[TBind], b: Expr)
     case Let(xs: Seq[(SBind, Expr)], b: Expr)
+    case Tuple(bs: Seq[Expr])
 
 case class ValueDecl(x: SBind, b: Expr)
 

@@ -14,7 +14,8 @@ type
     | type SYM_MUL type         #product
     | type SYM_ADD type         #sum
     | type SYM_ARROW type       #function
-    | IDENT                     #defined
+    | IDENT                     #variableType
+    | type type                 #applicationType
     ;
 
 scheme
@@ -24,16 +25,16 @@ scheme
 
 tBind : IDENT (SYM_COLON type)?;
 sBind : IDENT (SYM_COLON scheme)?;
-cBind : IDENT type?;
+cBind : IDENT type*;
 
-typeDecl : KW_DATA IDENT SYM_EQ cBind (SYM_PIPE cBind)*;
+typeDecl : KW_DATA IDENT IDENT* SYM_EQ cBind (SYM_PIPE cBind)*;
 
 expr
-    : expr primOp expr                                                               #primitiveOp
-    | IDENT                                                                          #variable
+    : primOp                                                                         #primitiveOp
+    | IDENT                                                                          #variableExpr
     | SYM_LPAR expr SYM_RPAR                                                         #parenExpr
     | LIT_INT                                                                        #literalInteger
-    | expr expr                                                                      #application
+    | expr expr                                                                      #applicationExpr
     | SYM_LAM tBind (SYM_COMMA tBind)* SYM_DOT expr                                  #abstraction
     | KW_LET sBind SYM_EQ expr (SYM_COMMA sBind SYM_EQ expr)* KW_IN expr             #let
     ;

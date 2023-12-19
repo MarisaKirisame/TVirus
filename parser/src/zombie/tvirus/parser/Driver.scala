@@ -39,20 +39,23 @@ object TVirusParserTypeVisitor extends TVirusParserBaseVisitor[Type] {
   override def visitPrimitiveType(ctx: PrimitiveTypeContext): Type =
     Type.Prim(TVirusParserPrimTypeVisitor.visit(ctx.primType()))
 
-  override def visitDefined(ctx: DefinedContext): Type =
-    Type.Defined(ctx.IDENT().getSymbol().getText())
+  override def visitVariableType(ctx: VariableTypeContext): Type =
+    Type.Var(ctx.IDENT().getSymbol().getText())
+
+  override def visitApplicationType(ctx: ApplicationTypeContext): Type =
+    Type.App(visit(ctx.`type`(0)), visit(ctx.`type`(1)))
 
   override def visitParenType(ctx: ParenTypeContext): Type =
     visit(ctx.`type`())
 
   override def visitProduct(ctx: ProductContext): Type =
-    Type.Product(visit(ctx.`type`(0)), visit(ctx.`type`(1)))
+    Type.Prod(visit(ctx.`type`(0)), visit(ctx.`type`(1)))
 
   override def visitSum(ctx: SumContext): Type =
     Type.Sum(visit(ctx.`type`(0)), visit(ctx.`type`(1)))
 
   override def visitFunction(ctx: FunctionContext): Type =
-    Type.Function(visit(ctx.`type`(0)), visit(ctx.`type`(1)))
+    Type.Func(visit(ctx.`type`(0)), visit(ctx.`type`(1)))
 }
 
 object TVirusParserSchemeVisitor extends TVirusParserBaseVisitor[Scheme] {
@@ -86,23 +89,24 @@ object TVirusParserCBindVisitor extends TVirusParserBaseVisitor[CBind] {
   override def visitCBind(ctx: CBindContext): CBind =
     CBind(
       ctx.IDENT().getSymbol().getText(),
-      Option(ctx.`type`()).map(TVirusParserTypeVisitor.visit)
+      ctx.`type`().asScala.toSeq.map(TVirusParserTypeVisitor.visit)
     )
 }
 
 object TVirusParserTypeDeclVisitor extends TVirusParserBaseVisitor[TypeDecl] {
   override def visitTypeDecl(ctx: TypeDeclContext): TypeDecl =
     TypeDecl(
-      ctx.IDENT().getSymbol().getText(),
+      ctx.IDENT(0).getSymbol().getText(),
+      ctx.IDENT().asScala.toSeq.drop(1).map(_.getSymbol().getText()),
       ctx.cBind().asScala.toSeq.map(TVirusParserCBindVisitor.visit)
     )
 }
 
 object TVirusParserExprVisitor extends TVirusParserBaseVisitor[Expr] {
-  override def visitVariable(ctx: VariableContext): Expr =
+  override def visitVariableExpr(ctx: VariableExprContext): Expr =
     Expr.Var(ctx.IDENT().getSymbol().getText())
 
-  override def visitApplication(ctx: ApplicationContext): Expr =
+  override def visitApplicationExpr(ctx: ApplicationExprContext): Expr =
     Expr.App(visit(ctx.expr(0)), visit(ctx.expr(1)))
 
   override def visitAbstraction(ctx: AbstractionContext): Expr =
