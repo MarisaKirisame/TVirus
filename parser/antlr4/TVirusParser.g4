@@ -12,7 +12,7 @@ type
     : primType                  #primitiveType
     | SYM_LPAR type SYM_RPAR    #parenType
     | type SYM_MUL type         #product
-    | type SYM_ADD type         #coproduct
+    | type SYM_ADD type         #sum
     | type SYM_ARROW type       #function
     ;
 
@@ -33,7 +33,7 @@ expr
     | LIT_INT                                         #literalInteger
     | expr expr                                       #application
     | SYM_LAM tBind (SYM_COMMA tBind)* SYM_DOT expr   #abstraction
-    | KW_LET sBind SYM_EQ expr KW_IN expr             #let
+    | KW_LET sBind SYM_EQ expr (SYM_COMMA sBind SYM_EQ expr)* KW_IN expr             #let
     ;
 
 valueDecl : KW_LET IDENT sBind SYM_EQ expr;

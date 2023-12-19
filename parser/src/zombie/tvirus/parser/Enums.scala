@@ -1,20 +1,35 @@
 package zombie.tvirus.parser
 
-enum Op:
-    case PLUS, MINUS, MULT
+enum PrimOp:
+    case ADD, MINUS, MUL, DIV, EQ, NE, GT, LT, GE, LE
+
+enum PrimType:
+    case INT
 
 enum Type:
-    case Int()
-    case Func(from: Type, target: Type)
-    case DataType(name: String)
+    case Prim(t: PrimType)
+    case Product(x: Type, y: Type)
+    case Sum(x: Type, y: Type)
+    case Function(x: Type, r: Type)
+
+enum Scheme:
+    case Mono(t: Type)
+    case Poly(xs: Seq[String], t: Type)
+
+case class TBind(name: String, t: Option[Type])
+case class SBind(name: String, s: Option[Scheme])
+case class CBind(name: String, args: Option[Type])
+
+case class TypeDecl(name: String, cons: Seq[CBind])
 
 enum Expr:
-    case Var(id: String)
-    case Int(int: Integer)
-    case Calc(l: Expr, op: Op, r: Expr)
+    case Prim(op: PrimOp)
+    case Var(name: String)
+    case LitInt(inner: Int)
     case App(f: Expr, x: Expr)
-    case Abs(x: String, body: Expr)
+    case Abs(xs: Seq[TBind], b: Expr)
+    case Let(xs: Seq[(SBind, Expr)], b: Expr)
 
-enum Statement:
-    case Let(name: String, expr: Expr)
-    case Data(name: String, unionFields: List[(String, List[Type])])
+case class ValueDecl(x: SBind, b: Expr)
+
+case class Program(decls: Seq[TypeDecl | ValueDecl])
