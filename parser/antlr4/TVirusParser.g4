@@ -9,18 +9,16 @@ primOp : SYM_ADD | SYM_MINUS | SYM_MUL | SYM_DIV | SYM_DE | SYM_NE | SYM_GT | SY
 primType : KW_INT | KW_BOOL;
 
 type
-    : primType                  #primitiveType
-    | SYM_LPAR type SYM_RPAR    #parenType
-    | type SYM_MUL type         #product
-    | type SYM_ADD type         #sum
-    | type SYM_ARROW type       #function
-    | IDENT                     #variableType
-    | type type                 #applicationType
+    : primType                #typePrim
+    | SYM_LPAR type SYM_RPAR  #typeParen
+    | type SYM_ARROW type     #typeFunc
+    | IDENT                   #typeVar
+    | type type               #typeApp
     ;
 
 scheme
-    : KW_FORALL IDENT+ SYM_DOT type   #poly
-    | type                            #mono
+    : KW_FORALL IDENT+ SYM_DOT type  #schemePoly
+    | type                           #schemeMono
     ;
 
 tBind : IDENT (SYM_COLON type)?;
@@ -29,15 +27,22 @@ cBind : IDENT type*;
 
 typeDecl : KW_DATA IDENT IDENT* SYM_EQ cBind (SYM_PIPE cBind)*;
 
+pat
+    : IDENT                                   #patVar
+    | SYM_UNDERSCORE                          #patWildcard
+    | pat pat                                 #patApp
+    | SYM_LPAR pat (SYM_COMMA pat)+ SYM_RPAR  #patTuple
+    ;
+
 expr
-    : primOp                                                                         #primitiveOp
-    | IDENT                                                                          #variableExpr
-    | SYM_LPAR expr SYM_RPAR                                                         #parenExpr
-    | LIT_INT                                                                        #literalInteger
-    | expr expr                                                                      #applicationExpr
-    | SYM_LAM tBind (SYM_COMMA tBind)* SYM_DOT expr                                  #abstraction
-    | KW_LET sBind SYM_EQ expr (SYM_COMMA sBind SYM_EQ expr)* KW_IN expr             #let
-    | SYM_LPAR expr (SYM_COMMA expr)+ SYM_RPAR                                       #tuple
+    : primOp                                                              #exprPrimOp
+    | IDENT                                                               #exprVar
+    | SYM_LPAR expr SYM_RPAR                                              #exprParen
+    | LIT_INT                                                             #exprLitInt
+    | expr expr                                                           #exprApp
+    | SYM_LAM tBind (SYM_COMMA tBind)* SYM_DOT expr                       #exprAbs
+    | KW_LET sBind SYM_EQ expr (SYM_COMMA sBind SYM_EQ expr)* KW_IN expr  #exprLet
+    | SYM_LPAR expr (SYM_COMMA expr)+ SYM_RPAR                            #exprTuple
     ;
 
 valueDecl : KW_LET sBind SYM_EQ expr;

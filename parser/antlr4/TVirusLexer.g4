@@ -30,6 +30,7 @@ SYM_PIPE : '|';
 SYM_COLON : ':';
 SYM_SEMICOLON : ';';
 SYM_COMMA : ',';
+SYM_UNDERSCORE : '_';
 
 KW_LET : 'let';
 KW_DATA : 'data';

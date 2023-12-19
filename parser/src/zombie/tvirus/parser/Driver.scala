@@ -32,42 +32,33 @@ object TVirusParserPrimTypeVisitor extends TVirusParserBaseVisitor[PrimType] {
 
   override def visitPrimType(ctx: PrimTypeContext): PrimType =
     ctx.getChild(0).asInstanceOf[TerminalNode].getSymbol().getType() match
-      case KW_INT => INT
+      case KW_INT  => INT
       case KW_BOOL => BOOL
 }
 
 object TVirusParserTypeVisitor extends TVirusParserBaseVisitor[Type] {
-  override def visitPrimitiveType(ctx: PrimitiveTypeContext): Type =
+  override def visitTypePrim(ctx: TypePrimContext): Type =
     Type.Prim(TVirusParserPrimTypeVisitor.visit(ctx.primType()))
 
-  override def visitVariableType(ctx: VariableTypeContext): Type =
-    Type.Var(ctx.IDENT().getSymbol().getText())
-
-  override def visitApplicationType(ctx: ApplicationTypeContext): Type =
-    Type.App(visit(ctx.`type`(0)), visit(ctx.`type`(1)))
-
-  override def visitParenType(ctx: ParenTypeContext): Type =
+  override def visitTypeParen(ctx: TypeParenContext): Type =
     visit(ctx.`type`())
 
-  override def visitProduct(ctx: ProductContext): Type =
-    Type.Prod(visit(ctx.`type`(0)), visit(ctx.`type`(1)))
-
-  override def visitSum(ctx: SumContext): Type =
-    Type.Sum(visit(ctx.`type`(0)), visit(ctx.`type`(1)))
-
-  override def visitFunction(ctx: FunctionContext): Type =
+  override def visitTypeFunc(ctx: TypeFuncContext): Type =
     Type.Func(visit(ctx.`type`(0)), visit(ctx.`type`(1)))
+
+  override def visitTypeVar(ctx: TypeVarContext): Type =
+    Type.Var(ctx.IDENT().getSymbol().getText())
+
+  override def visitTypeApp(ctx: TypeAppContext): Type =
+    Type.App(visit(ctx.`type`(0)), visit(ctx.`type`(1)))
 }
 
 object TVirusParserSchemeVisitor extends TVirusParserBaseVisitor[Scheme] {
-  override def visitPoly(ctx: PolyContext): Scheme =
+  override def visitSchemePoly(ctx: SchemePolyContext): Scheme =
     Scheme.Poly(
       ctx.IDENT().asScala.toSeq.map(_.getSymbol().getText()),
       TVirusParserTypeVisitor.visit(ctx.`type`())
     )
-
-  override def visitMono(ctx: MonoContext): Scheme =
-    Scheme.Mono(TVirusParserTypeVisitor.visit(ctx.`type`()))
 }
 
 object TVirusParserTBindVisitor extends TVirusParserBaseVisitor[TBind] {
@@ -103,40 +94,54 @@ object TVirusParserTypeDeclVisitor extends TVirusParserBaseVisitor[TypeDecl] {
     )
 }
 
+object TVirusParserPatVisitor extends TVirusParserBaseVisitor[Pat] {
+  override def visitPatVar(ctx: PatVarContext): Pat =
+    Pat.Var(ctx.IDENT().getSymbol().getText())
+
+  override def visitPatWildcard(ctx: PatWildcardContext): Pat =
+    Pat.Wildcard
+
+  override def visitPatApp(ctx: PatAppContext): Pat =
+    Pat.App(visit(ctx.pat(0)), visit(ctx.pat(1)))
+
+  override def visitPatTuple(ctx: PatTupleContext): Pat =
+    Pat.Tuple(ctx.pat().asScala.toSeq.map(visit))
+}
+
 object TVirusParserExprVisitor extends TVirusParserBaseVisitor[Expr] {
-  override def visitVariableExpr(ctx: VariableExprContext): Expr =
+  override def visitExprPrimOp(ctx: ExprPrimOpContext): Expr =
+    Expr.Prim(TVirusParserPrimOpVisitor.visit(ctx.primOp()))
+
+  override def visitExprVar(ctx: ExprVarContext): Expr =
     Expr.Var(ctx.IDENT().getSymbol().getText())
 
-  override def visitApplicationExpr(ctx: ApplicationExprContext): Expr =
+  override def visitExprParen(ctx: ExprParenContext): Expr =
+    visit(ctx.expr())
+
+  override def visitExprLitInt(ctx: ExprLitIntContext): Expr =
+    Expr.LitInt(Integer.parseInt(ctx.LIT_INT().getSymbol().getText()))
+
+  override def visitExprApp(ctx: ExprAppContext): Expr =
     Expr.App(visit(ctx.expr(0)), visit(ctx.expr(1)))
 
-  override def visitAbstraction(ctx: AbstractionContext): Expr =
+  override def visitExprAbs(ctx: ExprAbsContext): Expr =
     Expr.Abs(
       ctx.tBind().asScala.toSeq.map(TVirusParserTBindVisitor.visit),
       visit(ctx.expr())
     )
 
-  override def visitPrimitiveOp(ctx: PrimitiveOpContext): Expr =
-    Expr.Prim(TVirusParserPrimOpVisitor.visit(ctx.primOp()))
-
-  override def visitLet(ctx: LetContext): Expr =
+  override def visitExprLet(ctx: ExprLetContext): Expr =
     Expr.Let(
       ctx
         .sBind()
         .asScala
-        .toSeq
         .map(TVirusParserSBindVisitor.visit)
-        .zip(ctx.expr().asScala.map(visit)),
+        .zip(ctx.expr().asScala.map(visit))
+        .toSeq,
       visit(ctx.expr().get(ctx.expr().size() - 1))
     )
 
-  override def visitLiteralInteger(ctx: LiteralIntegerContext): Expr =
-    Expr.LitInt(Integer.parseInt(ctx.LIT_INT().getText()))
-
-  override def visitParenExpr(ctx: ParenExprContext): Expr =
-    visit(ctx.expr())
-
-  override def visitTuple(ctx: TupleContext): Expr =
+  override def visitExprTuple(ctx: ExprTupleContext): Expr =
     Expr.Tuple(ctx.expr().asScala.toSeq.map(visit))
 }
 
