@@ -18,7 +18,8 @@ type
 
 scheme
     : KW_FORALL IDENT+ SYM_DOT type   #poly
-    | type                            #mono;
+    | type                            #mono
+    ;
 
 tBind : IDENT (SYM_COLON type)?;
 sBind : IDENT (SYM_COLON scheme)?;
