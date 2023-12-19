@@ -33,6 +33,7 @@ object TVirusParserPrimTypeVisitor extends TVirusParserBaseVisitor[PrimType] {
   override def visitPrimType(ctx: PrimTypeContext): PrimType =
     ctx.getChild(0).asInstanceOf[TerminalNode].getSymbol().getType() match
       case KW_INT => INT
+      case KW_BOOL => BOOL
 }
 
 object TVirusParserTypeVisitor extends TVirusParserBaseVisitor[Type] {

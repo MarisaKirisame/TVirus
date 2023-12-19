@@ -4,7 +4,7 @@ enum PrimOp:
     case ADD, MINUS, MUL, DIV, EQ, NE, GT, LT, GE, LE
 
 enum PrimType:
-    case INT
+    case INT, BOOL
 
 enum Type:
     case Prim(t: PrimType)

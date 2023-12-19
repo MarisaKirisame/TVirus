@@ -6,7 +6,7 @@ options {
 
 primOp : SYM_ADD | SYM_MINUS | SYM_MUL | SYM_DIV | SYM_DE | SYM_NE | SYM_GT | SYM_LT | SYM_GE | SYM_LE;
 
-primType : KW_INT;
+primType : KW_INT | KW_BOOL;
 
 type
     : primType                  #primitiveType

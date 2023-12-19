@@ -35,7 +35,10 @@ KW_LET : 'let';
 KW_DATA : 'data';
 KW_IN : 'in';
 KW_FORALL : 'forall';
+KW_MATCH : 'match';
+KW_WITH : 'with';
 
 KW_INT : 'Int';
+KW_BOOL : 'Bool';
 
 IDENT : LETTER (LETTER | DIGIT)*;
