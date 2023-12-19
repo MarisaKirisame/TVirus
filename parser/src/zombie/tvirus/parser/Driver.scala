@@ -116,7 +116,7 @@ object TVirusParserExprVisitor extends TVirusParserBaseVisitor[Expr] {
     )
 
   override def visitPrimitiveOp(ctx: PrimitiveOpContext): Expr =
-    Expr.Prim(TVirusParserPrimOpVisitor.visit(ctx.primOp()), visit(ctx.expr(0)), visit(ctx.expr(1)))
+    Expr.Prim(TVirusParserPrimOpVisitor.visit(ctx.primOp()))
 
   override def visitLet(ctx: LetContext): Expr =
     Expr.Let(

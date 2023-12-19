@@ -25,7 +25,7 @@ case class CBind(name: String, args: Seq[Type])
 case class TypeDecl(name: String, xs: Seq[String], cons: Seq[CBind])
 
 enum Expr:
-    case Prim(op: PrimOp, left: Expr, right: Expr)
+    case Prim(op: PrimOp)
     case Var(name: String)
     case LitInt(inner: Int)
     case App(f: Expr, x: Expr)
