@@ -101,8 +101,11 @@ object TVirusParserPatVisitor extends TVirusParserBaseVisitor[Pat] {
   override def visitPatWildcard(ctx: PatWildcardContext): Pat =
     Pat.Wildcard
 
-  override def visitPatApp(ctx: PatAppContext): Pat =
-    Pat.App(visit(ctx.pat(0)), visit(ctx.pat(1)))
+  override def visitPatCons(ctx: PatConsContext): Pat =
+    Pat.Cons(
+      ctx.IDENT().getSymbol().getText(),
+      ctx.pat().asScala.toSeq.map(visit)
+    )
 
   override def visitPatTuple(ctx: PatTupleContext): Pat =
     Pat.Tuple(ctx.pat().asScala.toSeq.map(visit))
