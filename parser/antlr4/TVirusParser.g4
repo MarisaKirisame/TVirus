@@ -14,6 +14,7 @@ type
     | type SYM_MUL type         #product
     | type SYM_ADD type         #sum
     | type SYM_ARROW type       #function
+    | IDENT                     #defined
     ;
 
 scheme

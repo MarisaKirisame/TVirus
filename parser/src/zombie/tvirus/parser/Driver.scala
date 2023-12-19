@@ -39,6 +39,9 @@ object TVirusParserTypeVisitor extends TVirusParserBaseVisitor[Type] {
   override def visitPrimitiveType(ctx: PrimitiveTypeContext): Type =
     Type.Prim(TVirusParserPrimTypeVisitor.visit(ctx.primType()))
 
+  override def visitDefined(ctx: DefinedContext): Type =
+    Type.Defined(ctx.IDENT().getSymbol().getText())
+
   override def visitParenType(ctx: ParenTypeContext): Type =
     visit(ctx.`type`())
 

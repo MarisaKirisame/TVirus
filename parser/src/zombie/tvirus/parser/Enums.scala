@@ -8,6 +8,7 @@ enum PrimType:
 
 enum Type:
     case Prim(t: PrimType)
+    case Defined(name: String)
     case Product(x: Type, y: Type)
     case Sum(x: Type, y: Type)
     case Function(x: Type, r: Type)
