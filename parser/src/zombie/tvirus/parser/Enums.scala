@@ -24,7 +24,7 @@ case class CBind(name: String, args: Option[Type])
 case class TypeDecl(name: String, cons: Seq[CBind])
 
 enum Expr:
-    case Prim(op: PrimOp)
+    case Prim(op: PrimOp, left: Expr, right: Expr)
     case Var(name: String)
     case LitInt(inner: Int)
     case App(f: Expr, x: Expr)

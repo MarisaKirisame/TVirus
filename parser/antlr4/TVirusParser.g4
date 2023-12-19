@@ -29,7 +29,7 @@ cBind : IDENT type?;
 typeDecl : KW_DATA IDENT SYM_EQ cBind (SYM_PIPE cBind)*;
 
 expr
-    : primOp                                                                         #primitiveOp
+    : expr primOp expr                                                               #primitiveOp
     | IDENT                                                                          #variable
     | SYM_LPAR expr SYM_RPAR                                                         #parenExpr
     | LIT_INT                                                                        #literalInteger
