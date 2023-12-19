@@ -42,11 +42,15 @@ trait AntlrModule extends JavaModule {
     antlrToolArgs.append("-lib")
     antlrToolArgs.append(s"${T.dest}")
 
-    if (!antlrGenerateVisitor) {
+    if (antlrGenerateVisitor) {
+      antlrToolArgs.append("-visitor")
+    } else {
       antlrToolArgs.append("-no-visitor")
     }
 
-    if (!antlrGenerateListener) {
+    if (antlrGenerateListener) {
+      antlrToolArgs.append("-listener")
+    } else {
       antlrToolArgs.append("-no-listener")
     }
 
