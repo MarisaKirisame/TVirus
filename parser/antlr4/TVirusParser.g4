@@ -16,7 +16,9 @@ type
     | type SYM_ARROW type       #function
     ;
 
-scheme : KW_FORALL IDENT+ SYM_DOT type;
+scheme
+    : KW_FORALL IDENT+ SYM_DOT type   #poly
+    | type                            #mono;
 
 tBind : IDENT (SYM_COLON type)?;
 sBind : IDENT (SYM_COLON scheme)?;
