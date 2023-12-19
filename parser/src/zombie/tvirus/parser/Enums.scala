@@ -36,6 +36,7 @@ enum Expr:
   case Abs(xs: Seq[TBind], b: Expr)
   case Let(xs: Seq[(SBind, Expr)], b: Expr)
   case Tuple(bs: Seq[Expr])
+  case Match(x: Expr, bs: Seq[(Pat, Expr)])
 
 case class ValueDecl(x: SBind, b: Expr)
 
