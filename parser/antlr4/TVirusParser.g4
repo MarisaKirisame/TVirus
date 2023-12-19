@@ -36,6 +36,6 @@ expr
     | KW_LET sBind SYM_EQ expr (SYM_COMMA sBind SYM_EQ expr)* KW_IN expr             #let
     ;
 
-valueDecl : KW_LET IDENT sBind SYM_EQ expr;
+valueDecl : KW_LET sBind SYM_EQ expr;
 
 program : (typeDecl | valueDecl)*;
