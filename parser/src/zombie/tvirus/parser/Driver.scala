@@ -134,6 +134,9 @@ object TVirusParserExprVisitor extends TVirusParserBaseVisitor[Expr] {
 
   override def visitParenExpr(ctx: ParenExprContext): Expr =
     visit(ctx.expr())
+
+  override def visitTuple(ctx: TupleContext): Expr =
+    Expr.Tuple(ctx.expr().asScala.toSeq.map(visit))
 }
 
 object TVirusParserValueDeclVisitor extends TVirusParserBaseVisitor[ValueDecl] {

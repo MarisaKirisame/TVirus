@@ -37,6 +37,7 @@ expr
     | expr expr                                                                      #applicationExpr
     | SYM_LAM tBind (SYM_COMMA tBind)* SYM_DOT expr                                  #abstraction
     | KW_LET sBind SYM_EQ expr (SYM_COMMA sBind SYM_EQ expr)* KW_IN expr             #let
+    | SYM_LPAR expr (SYM_COMMA expr)+ SYM_RPAR                                       #tuple
     ;
 
 valueDecl : KW_LET sBind SYM_EQ expr;
