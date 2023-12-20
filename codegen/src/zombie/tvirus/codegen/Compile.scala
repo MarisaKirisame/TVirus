@@ -1,14 +1,15 @@
 package zombie.tvirus.codegen
 
-import zombie.tvirus.parser.{Expr, Op}
+import zombie.tvirus.parser.{Expr, Type, PrimOp, PrimType, TBind, Program}
+import zombie.tvirus.parser.ValueDecl
 
 class TypeTable:
   private var table: Map[String, Type] = Map()
 
-  def visit(name: String): Type = table.getOrElse(name, Type.TVar(name)) match
-    case Type.TVar(n) => {
+  def visit(name: String): Type = table.getOrElse(name, Type.Var(name)) match
+    case Type.Var(n) => {
       if n == name then
-        Type.TVar(n)
+        Type.Var(n)
       else {
         val v = visit(n)
         table = table.updated(name, v)
@@ -17,15 +18,20 @@ class TypeTable:
     }
     case value => value
   
+  def freeVariables(): Set[String] = 
+    table.keys.map { k => visit(k) }.collect {
+      case Type.Var(n) => n
+    }.toSet
+  
   def canonical(ty: Type): Type = ty match
-    case Type.TInt() => Type.TInt()
-    case Type.TVar(name) => visit(name)
+    case Type.Prim(_) => ty
+    case Type.Var(name) => visit(name)
     case Type.Func(from, target) => 
       Type.Func(canonical(from), canonical(target))
   
   def set(name: String, value: Type): Unit = {
     visit(name) match
-      case Type.TVar(n) =>
+      case Type.Var(n) =>
         table = table.updated(n, value)
       case _ => 
         println("You can't set value for an established value")
@@ -33,7 +39,7 @@ class TypeTable:
 
   def freshen(name: String): String = {
     if !table.contains(name) then {
-      table = table.updated(name, Type.TVar(name))
+      table = table.updated(name, Type.Var(name))
       name
     }
     else 
@@ -45,19 +51,19 @@ type Env = Map[String, (CoreExpr, Type)]
 
 def unifyType(a: Type, b: Type, table: TypeTable): Boolean = {
   def find(ty: Type): Type = ty match 
-    case Type.TVar(n) => table.visit(n)
+    case Type.Var(n) => table.visit(n)
     case _ => ty
   
   (find(a), find(b)) match
-    case (Type.TVar(a), tb) => {
+    case (Type.Var(a), tb) => {
       table.set(a, tb)
       true
     }
-    case (ta, Type.TVar(b)) => {
+    case (ta, Type.Var(b)) => {
       table.set(b, ta)
       true
     }
-    case (Type.TInt(), Type.TInt()) => true
+    case (Type.Prim(pr1), Type.Prim(pr2)) => pr1 == pr2
     case (Type.Func(fromA, targetA), Type.Func(fromB, targetB)) => 
       // since if we failed to union two types, the compilation terminated,
       // so we don't care the modification on the table when only one part of the union success.
@@ -77,18 +83,16 @@ def compileWithEnv(expr: Expr, env: Env, type_table: TypeTable)
     expr match
       case Expr.Var(name) => 
         env.get(name).toRight(s"Can't find variable ${name}")
-      case Expr.Int(int) => {
-        Right((CoreExpr.CInt(int), Type.TInt()))
+      case Expr.LitInt(int) => {
+        Right((CoreExpr.LitInt(int), Type.Prim(PrimType.INT)))
       }
-      case Expr.Calc(l, op, r) => 
-        for 
-          left <- compileWithEnv(l, env, type_table)
-          right <- compileWithEnv(r, env, type_table)
-          _ <- failIf(!unifyType(left._2, Type.TInt(), type_table),
-                      s"fail to unify ${left._2} with Int")
-          _ <- failIf(!unifyType(right._2, Type.TInt(), type_table), 
-                      s"fail to unify ${right._2} with Int")
-        yield (CoreExpr.CCalc(left._1, op, right._1), Type.TInt())
+      case Expr.Prim(op) => {
+        val TInt = Type.Prim(PrimType.INT)
+        if Seq(PrimOp.ADD, PrimOp.MINUS, PrimOp.MUL).contains(op) then
+          Right((CoreExpr.Prim(op), Type.Func(TInt, Type.Func(TInt, TInt))))
+        else
+          Left(s"Currently unsupported operator ${op}")
+      }
 
       case Expr.App(f, x) => {
         val target = type_table.freshen("target")
@@ -96,34 +100,74 @@ def compileWithEnv(expr: Expr, env: Env, type_table: TypeTable)
         for 
           fun <- compileWithEnv(f, env, type_table)
           arg <- compileWithEnv(x, env, type_table)
-          _ <- failIf(!unifyType(fun._2, Type.Func(arg._2, Type.TVar(target)), type_table), 
+          _ <- failIf(!unifyType(fun._2, Type.Func(arg._2, Type.Var(target)), type_table), 
                       s"fail to unify ${fun._2} as a funtion type with ${arg._2} from")
-        yield (CoreExpr.CApp(fun._1, arg._1), type_table.visit(target))
+        yield (CoreExpr.App(fun._1, arg._1), type_table.visit(target))
       }
 
-      case Expr.Abs(x, body) => {
-        val arg = type_table.freshen(x)
-        val newEnv = env.+((x, (CoreExpr.CVar(x), Type.TVar(arg))))
+      case Expr.Abs(Nil, body) => compileWithEnv(body, env, type_table)
+
+      case Expr.Abs(TBind(name, ty) +: tail, body) => {
+        val arg = type_table.freshen(name)
+        val newPair = ty match
+          case None => (CoreExpr.Var(arg), Type.Var(arg))
+          case Some(value) => (CoreExpr.Var(arg), value)
+        val newEnv = env.+((name, newPair))
 
         for 
           body_result <- compileWithEnv(body, newEnv, type_table)
-        yield (CoreExpr.CLam(x, Type.TVar(arg), body_result._1),
-               Type.Func(Type.TVar(arg), body_result._2))
+        yield (CoreExpr.Lam(name, Type.Var(arg), body_result._1),
+               Type.Func(Type.Var(arg), body_result._2))
       }
   }
 
 def canonize_type(core: CoreExpr, type_table: TypeTable): CoreExpr = core match
-  case CoreExpr.CLam(name, ty, body) => 
-    CoreExpr.CLam(name, type_table.canonical(ty), canonize_type(body, type_table))
-  case CoreExpr.CApp(fun, arg) =>
-    CoreExpr.CApp(canonize_type(fun, type_table), canonize_type(arg, type_table))
-  case CoreExpr.CInt(value) => core
-  case CoreExpr.CCalc(left, op, right) => 
-    CoreExpr.CCalc(canonize_type(left, type_table), op, canonize_type(right, type_table))
-  case CoreExpr.CVar(name) => core
+  case CoreExpr.Lam(name, ty, body) => 
+    CoreExpr.Lam(name, type_table.canonical(ty), canonize_type(body, type_table))
+  case CoreExpr.App(fun, arg) =>
+    CoreExpr.App(canonize_type(fun, type_table), canonize_type(arg, type_table))
+  case CoreExpr.LitInt(value) => core
+  case CoreExpr.Var(name) => core
+  case CoreExpr.Prim(op) => core
 
-def compile(expr: Expr): Either[String, CoreExpr] = 
-  var type_table = TypeTable()
+def compileExpr(expr: Expr, env: Env, type_table: TypeTable): Either[String, (CoreExpr, Type)] = 
+  var next_type_table = TypeTable()
   for 
-    result <- compileWithEnv(expr, Map(), type_table)
-  yield canonize_type(result._1, type_table)
+    result <- compileWithEnv(expr, env, type_table)
+  yield (canonize_type(result._1, type_table), type_table.canonical(result._2))
+
+def compile(prog: Program): Either[String, CoreProgram] = {
+  var type_table = TypeTable()
+  var env = Map[String, (CoreExpr, Type)]()
+
+  var core_exprs = Seq[CoreDecl]()
+  var freeTypeVars = Set[String]()
+
+  for 
+    decl <- prog.decls
+  do {
+    decl match
+      case ValueDecl(x, b) => {
+        // scheme is ignore for now
+        // we should copy type_table here
+        compileExpr(b, env, type_table) match
+          case Left(msg) => return Left(msg)
+          case Right((core, ty)) => {
+            core_exprs = core_exprs :+ (
+              if x.name == "main" then
+                CoreDecl.MainDecl(core)
+              else 
+                CoreDecl.ValueDecl(x.name, core, ty)
+            )
+            env = env.updated(x.name, (core, ty))
+            freeTypeVars = freeTypeVars ++ type_table.freeVariables()
+            type_table = TypeTable()
+            for v <- freeTypeVars do {
+              type_table.set(v, Type.Var(v))
+            }
+          }
+      }
+  }
+
+  Right(CoreProgram(core_exprs))
+}

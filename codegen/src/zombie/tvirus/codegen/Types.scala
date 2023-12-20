@@ -1,15 +1,19 @@
 package zombie.tvirus.codegen
 
-import zombie.tvirus.parser.Op
-
-enum Type: 
-  case TInt()
-  case TVar(name: String)
-  case Func(from: Type, target: Type)
+import zombie.tvirus.parser.{PrimOp, Type}
 
 enum CoreExpr:
-  case CLam(name: String, ty: Type, body: CoreExpr)
-  case CApp(fun: CoreExpr, arg: CoreExpr)
-  case CInt(value: Int)
-  case CCalc(left: CoreExpr, op: Op, right: CoreExpr)
-  case CVar(name: String)
+  case Lam(name: String, ty: Type, body: CoreExpr)
+  case App(fun: CoreExpr, arg: CoreExpr)
+  case LitInt(inner: Int)
+  case Prim(op: PrimOp)
+  case Var(name: String)
+
+
+enum CoreDecl:
+  // !!!: the Scheme in SBind is temporarily ignored
+  case ValueDecl(x: String, b: CoreExpr, ty: Type)
+
+  case MainDecl(b: CoreExpr)
+
+case class CoreProgram(decls: Seq[CoreDecl])
