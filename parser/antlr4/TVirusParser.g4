@@ -38,7 +38,7 @@ typeDecl: KW_DATA IDENT IDENT* SYM_EQ cBind (SYM_PIPE cBind)*;
 pat:
 	IDENT										# patVar
 	| SYM_UNDERSCORE							# patWildcard
-	| IDENT pat*								# patCons
+	| pat pat									# patApp
 	| SYM_LPAR pat (SYM_COMMA pat)+ SYM_RPAR	# patTuple;
 
 expr:

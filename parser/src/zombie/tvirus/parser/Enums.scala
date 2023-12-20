@@ -25,7 +25,7 @@ case class TypeDecl(name: String, xs: Seq[String], cons: Seq[CBind])
 enum Pat:
   case Var(name: String)
   case Wildcard
-  case Cons(name: String, args: Seq[Pat])
+  case App(f: Pat, x: Pat)
   case Tuple(bs: Seq[Pat])
 
 enum Expr:
