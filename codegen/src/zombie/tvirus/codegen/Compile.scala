@@ -157,7 +157,7 @@ def compile(prog: Program): Either[String, CoreProgram] = {
               if x.name == "main" then
                 CoreDecl.MainDecl(core)
               else 
-                CoreDecl.ValueDecl(x.name, core)
+                CoreDecl.ValueDecl(x.name, core, ty)
             )
             env = env.updated(x.name, (core, ty))
             freeTypeVars = freeTypeVars ++ type_table.freeVariables()

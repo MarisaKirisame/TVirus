@@ -17,9 +17,9 @@ object Main{
   ) = {
     val fileReader = new FileReader(new File(source_file))
 
-    val expr = drive(CharStreams.fromReader(fileReader))
+    val prog = drive(CharStreams.fromReader(fileReader))
 
-    compile(expr) match
+    compile(prog) match
     case Left(msg) => println(msg)
     case Right(core) => {
       try {

@@ -12,7 +12,7 @@ enum CoreExpr:
 
 enum CoreDecl:
   // !!!: the Scheme in SBind is temporarily ignored
-  case ValueDecl(x: String, b: CoreExpr)
+  case ValueDecl(x: String, b: CoreExpr, ty: Type)
 
   case MainDecl(b: CoreExpr)
 
