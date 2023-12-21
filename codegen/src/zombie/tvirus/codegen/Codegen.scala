@@ -18,21 +18,21 @@ def codegenExpr(core: CoreExpr): String = core match
   case zombie.tvirus.codegen.CoreExpr.App(fun, arg) => 
     s"(${codegenExpr(fun)})(${codegenExpr(arg)})"
   case CoreExpr.LitInt(inner) => inner.toString
-  case CoreExpr.Prim(op) => {
-    val op_str = op match
-      case PrimOp.ADD => "+"
-      case PrimOp.MINUS => "-"
-      case PrimOp.MUL => "*"
-      case PrimOp.DIV => "/"
-      case PrimOp.EQ => "=="
-      case PrimOp.NE => "!="
-      case PrimOp.GT => ">"
-      case PrimOp.LT => "<"
-      case PrimOp.GE => ">="
-      case PrimOp.LE => "<="
+  // case CoreExpr.Prim(op) => {
+  //   val op_str = op match
+  //     case PrimOp.ADD => "+"
+  //     case PrimOp.MINUS => "-"
+  //     case PrimOp.MUL => "*"
+  //     case PrimOp.DIV => "/"
+  //     case PrimOp.EQ => "=="
+  //     case PrimOp.NE => "!="
+  //     case PrimOp.GT => ">"
+  //     case PrimOp.LT => "<"
+  //     case PrimOp.GE => ">="
+  //     case PrimOp.LE => "<="
 
-    s"([](const auto &a) { return [=](const auto &b) {return a ${op_str} b;};})"
-  }
+  //   s"([](const auto &a) { return [=](const auto &b) {return a ${op_str} b;};})"
+  // }
   case CoreExpr.Var(name) => name
 
 def codegen(core: CoreProgram): String = {

@@ -6,7 +6,7 @@ enum CoreExpr:
   case Lam(name: String, ty: Type, body: CoreExpr)
   case App(fun: CoreExpr, arg: CoreExpr)
   case LitInt(inner: Int)
-  case Prim(op: PrimOp)
+  case Prim(left: CoreExpr, op: PrimOp, right: CoreExpr)
   case Var(name: String)
 
 

@@ -86,11 +86,11 @@ def compileWithEnv(expr: Expr, env: Env, type_table: TypeTable)
       case Expr.LitInt(int) => {
         Right((CoreExpr.LitInt(int), Type.Prim(PrimType.INT)))
       }
-      case Expr.Prim(op) => {
+      case Expr.Prim(left, op, right) => {
         val TInt = Type.Prim(PrimType.INT)
-        if Seq(PrimOp.ADD, PrimOp.MINUS, PrimOp.MUL).contains(op) then
-          Right((CoreExpr.Prim(op), Type.Func(TInt, Type.Func(TInt, TInt))))
-        else
+        // if Seq(PrimOp.ADD, PrimOp.MINUS, PrimOp.MUL).contains(op) then
+        //   Right((CoreExpr.Prim(left, op, right), Type.Func(TInt, Type.Func(TInt, TInt))))
+        // else
           Left(s"Currently unsupported operator ${op}")
       }
 
@@ -128,7 +128,7 @@ def canonize_type(core: CoreExpr, type_table: TypeTable): CoreExpr = core match
     CoreExpr.App(canonize_type(fun, type_table), canonize_type(arg, type_table))
   case CoreExpr.LitInt(value) => core
   case CoreExpr.Var(name) => core
-  case CoreExpr.Prim(op) => core
+  case CoreExpr.Prim(left, op, right) => core
 
 def compileExpr(expr: Expr, env: Env, type_table: TypeTable): Either[String, (CoreExpr, Type)] = 
   var next_type_table = TypeTable()
