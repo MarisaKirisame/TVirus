@@ -36,10 +36,9 @@ cBind: IDENT type*;
 typeDecl: KW_DATA IDENT IDENT* SYM_EQ cBind (SYM_PIPE cBind)*;
 
 pat:
-	IDENT										# patVar
-	| SYM_UNDERSCORE							# patWildcard
-	| pat pat									# patApp
-	| SYM_LPAR pat (SYM_COMMA pat)+ SYM_RPAR	# patTuple;
+	IDENT				# patVar
+	| SYM_UNDERSCORE	# patWildcard
+	| pat pat			# patApp;
 
 expr:
 	primOp																	# exprPrimOp
@@ -49,7 +48,6 @@ expr:
 	| expr expr																# exprApp
 	| SYM_LAM tBind (SYM_COMMA tBind)* SYM_DOT expr							# exprAbs
 	| KW_LET sBind SYM_EQ expr (SYM_COMMA sBind SYM_EQ expr)* KW_IN expr	# exprLet
-	| SYM_LPAR expr (SYM_COMMA expr)+ SYM_RPAR								# exprTuple
 	| KW_MATCH expr KW_WITH (SYM_PIPE pat SYM_ARROW expr)+					# exprMatch;
 
 valueDecl: KW_LET sBind SYM_EQ expr;

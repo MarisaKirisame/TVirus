@@ -26,7 +26,6 @@ enum Pat:
   case Var(name: String)
   case Wildcard
   case App(f: Pat, x: Pat)
-  case Tuple(bs: Seq[Pat])
 
 enum Expr:
   case Prim(op: PrimOp)
@@ -35,7 +34,6 @@ enum Expr:
   case App(f: Expr, x: Expr)
   case Abs(xs: Seq[TBind], b: Expr)
   case Let(xs: Seq[(SBind, Expr)], b: Expr)
-  case Tuple(bs: Seq[Expr])
   case Match(x: Expr, bs: Seq[(Pat, Expr)])
 
 case class ValueDecl(x: SBind, b: Expr)
