@@ -31,7 +31,7 @@ def codegenExpr(core: CoreExpr): String = core match
       case PrimOp.GE => ">="
       case PrimOp.LE => "<="
 
-    s"([=](const auto &a, const auto &b)) { return a ${op_str} b;}"
+    s"([](const auto &a) { return [=](const auto &b) {return a ${op_str} b;};})"
   }
   case CoreExpr.Var(name) => name
 
