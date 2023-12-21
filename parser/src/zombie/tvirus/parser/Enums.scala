@@ -28,7 +28,7 @@ enum Pat:
   case App(f: Pat, x: Pat)
 
 enum Expr:
-  case Prim(op: PrimOp)
+  case Prim(left: Expr, op: PrimOp, right: Expr)
   case Var(name: String)
   case LitInt(inner: Int)
   case App(f: Expr, x: Expr)

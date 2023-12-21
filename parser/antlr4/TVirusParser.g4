@@ -41,7 +41,7 @@ pat:
 	| pat pat			# patApp;
 
 expr:
-	primOp																	# exprPrimOp
+	expr primOp expr														# exprPrimOp
 	| IDENT																	# exprVar
 	| SYM_LPAR expr SYM_RPAR												# exprParen
 	| LIT_INT																# exprLitInt

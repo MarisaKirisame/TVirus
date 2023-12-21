@@ -110,7 +110,11 @@ object TVirusParserPatVisitor extends TVirusParserBaseVisitor[Pat] {
 
 object TVirusParserExprVisitor extends TVirusParserBaseVisitor[Expr] {
   override def visitExprPrimOp(ctx: ExprPrimOpContext): Expr =
-    Expr.Prim(TVirusParserPrimOpVisitor.visit(ctx.primOp()))
+    Expr.Prim(
+      visit(ctx.expr(0)),
+      TVirusParserPrimOpVisitor.visit(ctx.primOp()),
+      visit(ctx.expr(1))
+    )
 
   override def visitExprVar(ctx: ExprVarContext): Expr =
     Expr.Var(ctx.IDENT().getSymbol().getText())
