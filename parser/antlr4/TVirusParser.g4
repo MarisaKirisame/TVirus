@@ -31,7 +31,9 @@ scheme:
 
 tBind: IDENT (SYM_COLON type)?;
 sBind: IDENT (SYM_COLON scheme)?;
-cBind: IDENT type*;
+cBind:
+	IDENT							# cBindOnlyName
+	| IDENT type (SYM_COMMA type)*	# cBindWithArgs;
 
 typeDecl: KW_DATA IDENT IDENT* SYM_EQ cBind (SYM_PIPE cBind)*;
 

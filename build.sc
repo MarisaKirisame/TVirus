@@ -11,7 +11,8 @@ object parser extends AntlrModule with CommonModule {
 
 object codegen extends CommonModule {
   def ivyDeps = Agg(
-    ivy"dev.zio::zio-prelude:1.0.0-RC21"
+    ivy"org.typelevel::cats-core:2.10.0",
+    ivy"org.typelevel::cats-collections-core:0.9.8"
   )
 
   def moduleDeps = Seq(parser)
