@@ -78,14 +78,9 @@ object TVirusParserSBindVisitor extends TVirusParserBaseVisitor[SBind] {
 }
 
 object TVirusParserCBindVisitor extends TVirusParserBaseVisitor[CBind] {
-  override def visitCBindOnlyName(ctx: CBindOnlyNameContext): CBind =
-    CBind(ctx.IDENT().getSymbol().getText(), Seq.empty)
-
-  override def visitCBindWithArgs(ctx: CBindWithArgsContext): CBind =
-    CBind(
-      ctx.IDENT().getSymbol().getText(),
-      ctx.`type`().asScala.toSeq.map(TVirusParserTypeVisitor.visit)
-    )
+  override def visit(x: cBindWithArgs) = {
+    
+  }
 }
 
 object TVirusParserTypeDeclVisitor extends TVirusParserBaseVisitor[TypeDecl] {

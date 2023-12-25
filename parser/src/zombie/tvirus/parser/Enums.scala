@@ -31,7 +31,7 @@ enum Expr:
   case Prim(left: Expr, op: PrimOp, right: Expr)
   case Var(name: String)
   case LitInt(inner: Int)
-  case App(f: Expr, x: Expr)
+  case App(f: Expr, xs: Seq[Expr])
   case Abs(xs: Seq[TBind], b: Expr)
   case Let(xs: Seq[(SBind, Expr)], b: Expr)
   case Match(x: Expr, bs: Seq[(Pat, Expr)])

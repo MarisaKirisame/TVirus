@@ -7,6 +7,7 @@ object parser extends AntlrModule with CommonModule {
   }
   override def antlrPackage = Some("zombie.tvirus.parser.generated")
   override def antlrGenerateVisitor = true
+  override def ivyDeps = super.ivyDeps() ++ Agg(ivy"com.lihaoyi::pprint:0.8.1")
 }
 
 object codegen extends CommonModule {
