@@ -26,6 +26,7 @@ def pp_pat(x: Pat): String =
   x match
     case Pat.Wildcard         => "_"
     case Pat.Cons(name, args) => s"$name " + args.map(pp_pat(_)).mkString(" ")
+    case Pat.Var(x)           => x
 
 def hoas(f: (Expr => Expr)): Expr = {
   val x_ = freshName
@@ -73,32 +74,32 @@ def freshName = {
   s"base$count"
 }
 
-def cps_expr(x: Expr, k: Expr): Expr = {
+def cps_exprs(x:Seq[Expr], k:Seq[Expr] => Expr): Expr = {
   x match {
-    case Expr.Var(x) => Expr.App(k, Seq(Expr.Var(x)))
+    case Seq() => k(Seq())
+    case x +: xs => cps_expr(x, x_ => cps_exprs(xs, xs_ => k(x_ +: xs_)))
+  }
+}
+
+def cps_expr(x: Expr, k: Expr => Expr): Expr = {
+  x match {
+    case Expr.Var(_) => k(x)
     case Expr.Abs(xs, y) => {
       val k_ = freshName
-      Expr.App(
-        k,
-        Seq(Expr.Abs(xs :+ TBind(k_, None), cps_expr(y, Expr.Var(k_))))
-      )
+      k(Expr.Abs(xs :+ TBind(k_, None), cps_expr(y, y_ => Expr.App(Expr.Var(k_), Seq(y_)))))
     }
     case Expr.Match(x, cases) => {
-      cps_expr(
-        x,
-        hoas(x_ => Expr.Match(x_, cases.map((l, r) => (l, cps_expr(r, k)))))
-      )
+      cps_expr(x, x_ => Expr.Match(x_, cases.map((l, r) => (l, cps_expr(r, k)))))
     }
-    case p @ Expr.App(f, x) => {
-      // cps_expr(f, hoas(f_ => cps_expr(x, hoas(x_ => Expr.App(f_, x_)))))
-      p
+    case Expr.App(f, x) => {
+      cps_expr(f, f_ => cps_exprs(x, x_ => Expr.App(f_, x_ :+ hoas(k))))
     }
   }
 }
 
 def cps_valuedecl(x: ValueDecl) = {
   val k = freshName
-  ValueDecl(x.x, Expr.Abs(Seq(TBind(k, None)), cps_expr(x.b, Expr.Var(k))))
+  ValueDecl(x.x, Expr.Abs(Seq(TBind(k, None)), cps_expr(x.b, (y: Expr) => Expr.App(Expr.Var(k), Seq(y)))))
 }
 
 def cps(p: Program): Program = {
