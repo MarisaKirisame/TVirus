@@ -78,9 +78,14 @@ object TVirusParserSBindVisitor extends TVirusParserBaseVisitor[SBind] {
 }
 
 object TVirusParserCBindVisitor extends TVirusParserBaseVisitor[CBind] {
-  override def visit(x: cBindWithArgs) = {
-    
-  }
+  override def visitCBindEmpty(ctx: CBindEmptyContext): CBind =
+    CBind(ctx.IDENT().getSymbol().getText(), Seq.empty)
+
+  override def visitCBindFull(ctx: CBindFullContext): CBind =
+    CBind(
+      ctx.IDENT().getSymbol().getText(),
+      ctx.`type`().asScala.map(TVirusParserTypeVisitor.visit).toSeq
+    )
 }
 
 object TVirusParserTypeDeclVisitor extends TVirusParserBaseVisitor[TypeDecl] {
@@ -93,16 +98,22 @@ object TVirusParserTypeDeclVisitor extends TVirusParserBaseVisitor[TypeDecl] {
 }
 
 object TVirusParserPatVisitor extends TVirusParserBaseVisitor[Pat] {
-  override def visitPatVar(ctx: PatVarContext): Pat =
-    Pat.Var(ctx.IDENT().getSymbol().getText())
-
   override def visitPatWildcard(ctx: PatWildcardContext): Pat =
     Pat.Wildcard
 
-  override def visitPatApp(ctx: PatAppContext): Pat =
-    Pat.App(
-      visit(ctx.pat(0)),
-      visit(ctx.pat(1))
+  override def visitPatVar(ctx: PatVarContext): Pat =
+    Pat.Var(ctx.IDENT().getSymbol().getText())
+
+  override def visitPatConsEmpty(ctx: PatConsEmptyContext): Pat =
+    Pat.Cons(
+      ctx.IDENT().getSymbol().getText(),
+      Seq.empty
+    )
+
+  override def visitPatConsFull(ctx: PatConsFullContext): Pat =
+    Pat.Cons(
+      ctx.IDENT().getSymbol().getText(),
+      ctx.pat().asScala.toSeq.map(visit)
     )
 }
 
@@ -123,8 +134,11 @@ object TVirusParserExprVisitor extends TVirusParserBaseVisitor[Expr] {
   override def visitExprLitInt(ctx: ExprLitIntContext): Expr =
     Expr.LitInt(Integer.parseInt(ctx.LIT_INT().getSymbol().getText()))
 
-  override def visitExprApp(ctx: ExprAppContext): Expr =
-    Expr.App(visit(ctx.expr(0)), visit(ctx.expr(1)))
+  override def visitExprAppEmpty(ctx: ExprAppEmptyContext): Expr =
+    Expr.App(visit(ctx.expr()), Seq.empty)
+
+  override def visitExprAppFull(ctx: ExprAppFullContext): Expr =
+    Expr.App(visit(ctx.expr(0)), ctx.expr().asScala.drop(1).map(visit).toSeq)
 
   override def visitExprAbs(ctx: ExprAbsContext): Expr =
     Expr.Abs(

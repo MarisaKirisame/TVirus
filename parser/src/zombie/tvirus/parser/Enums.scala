@@ -23,9 +23,9 @@ case class CBind(name: String, args: Seq[Type])
 case class TypeDecl(name: String, xs: Seq[String], cons: Seq[CBind])
 
 enum Pat:
-  case Var(name: String)
   case Wildcard
-  case App(f: Pat, x: Pat)
+  case Var(name: String)
+  case Cons(name: String, args: Seq[Pat])
 
 enum Expr:
   case Prim(left: Expr, op: PrimOp, right: Expr)

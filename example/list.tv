@@ -1,13 +1,13 @@
-data List a = Nil | Cons a, List a
+data List a = Nil() | Cons(a, List a)
 
 let map = \f, l. match l with
-    | Nil -> Nil
-    | Cons x xs -> Cons (f x) (map f xs)
+    | Nil() -> Nil()
+    | Cons(x, xs) -> Cons(f(x), map(f, xs))
 
 let reverseAppend = \l1, l2. match l1 with
-    | Nil -> l2
-    | Cons a l -> reverseAppend l (Cons a l2)
+    | Nil() -> l2
+    | Cons(a, l) -> reverseAppend(l, Cons(a, l2))
 
-let reverse = \l. reverseAppend l Nil
+let reverse = \l. reverseAppend(l, Nil())
 
-let main = map (\x. x) Nil
+let main = map((\x. x), Nil())

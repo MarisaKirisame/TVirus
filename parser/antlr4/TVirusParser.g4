@@ -31,21 +31,25 @@ scheme:
 
 tBind: IDENT (SYM_COLON type)?;
 sBind: IDENT (SYM_COLON scheme)?;
-cBind: IDENT type*               	# cBindWithArgs;
+cBind:
+	IDENT SYM_LPAR SYM_RPAR								# cBindEmpty
+	| IDENT SYM_LPAR type (SYM_COMMA type)* SYM_RPAR	# cBindFull;
 
 typeDecl: KW_DATA IDENT IDENT* SYM_EQ cBind (SYM_PIPE cBind)*;
 
 pat:
-	SYM_UNDERSCORE	       # patWildcard
-	| IDENT pat*           # patApp;
+	SYM_UNDERSCORE									# patWildcard
+	| IDENT											# patVar
+	| IDENT SYM_LPAR SYM_RPAR						# patConsEmpty
+	| IDENT SYM_LPAR pat (SYM_COMMA pat)* SYM_RPAR	# patConsFull;
 
 expr:
 	expr primOp expr														# exprPrimOp
 	| IDENT																	# exprVar
 	| SYM_LPAR expr SYM_RPAR												# exprParen
 	| LIT_INT																# exprLitInt
-	| expr SYM_LPAR SYM_RPAR         										# exprAppEmpty
-	| expr SYM_LPAR expr (SYM_COMMA expr)* SYM_RPAR                         # exprAppFull
+	| expr SYM_LPAR SYM_RPAR												# exprAppEmpty
+	| expr SYM_LPAR expr (SYM_COMMA expr)* SYM_RPAR							# exprAppFull
 	| SYM_LAM tBind (SYM_COMMA tBind)* SYM_DOT expr							# exprAbs
 	| KW_LET sBind SYM_EQ expr (SYM_COMMA sBind SYM_EQ expr)* KW_IN expr	# exprLet
 	| KW_MATCH expr KW_WITH (SYM_PIPE pat SYM_ARROW expr)+					# exprMatch;
