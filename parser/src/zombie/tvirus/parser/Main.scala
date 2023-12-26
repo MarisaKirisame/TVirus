@@ -44,7 +44,8 @@ def pp_expr(x: Expr): String = {
       "match " + pp_expr(x) + " with " + cases
         .map(y => pp_pat(y(0)) + " => " + pp_expr(y(1)))
         .mkString(" | ")
-    case _ => x.toString()
+    case Expr.Cons(con, xs) => con + "(" + xs.map(pp_expr).mkString(", ") + ")"
+    case _                  => x.toString()
   }
 }
 
@@ -74,36 +75,50 @@ def freshName = {
   s"base$count"
 }
 
+enum Cont:
+  case HO(k: Expr => Expr)
+  case FO(k: Expr)
+
 def cps_exprs(x: Seq[Expr], k: Seq[Expr] => Expr): Expr = {
   x match {
     case Seq()   => k(Seq())
-    case x +: xs => cps_expr(x, x_ => cps_exprs(xs, xs_ => k(x_ +: xs_)))
+    case x +: xs => cps_expr_k(x, x_ => cps_exprs(xs, xs_ => k(x_ +: xs_)))
   }
 }
 
-def cps_expr(x: Expr, k: Expr => Expr): Expr = {
+def cps_abs(x: Expr.Abs): Expr = {
+  val k_ = freshName
+  Expr.Abs(
+    x.xs :+ TBind(k_, None),
+    cps_expr_c(x.b, Expr.Var(k_))
+  )
+}
+
+def cps_expr_k(x: Expr, k: Expr => Expr): Expr = {
   x match {
-    case Expr.Var(_) => k(x)
-    case Expr.Abs(xs, y) => {
-      val k_ = freshName
-      k(
-        Expr.Abs(
-          xs :+ TBind(k_, None),
-          cps_expr(y, y_ => Expr.App(Expr.Var(k_), Seq(y_)))
-        )
-      )
-    }
+    case v@Expr.Var(_) => k(v)
+    case abs@Expr.Abs(_, _) => k(cps_abs(abs))
     case Expr.Match(x, cases) => {
-      cps_expr(
+      cps_expr_k(
         x,
-        x_ => Expr.Match(x_, cases.map((l, r) => (l, cps_expr(r, k))))
+        x_ => Expr.Match(x_, cases.map((l, r) => (l, cps_expr_k(r, k))))
       )
     }
     case Expr.App(f, x) => {
-      cps_expr(f, f_ => cps_exprs(x, x_ => Expr.App(f_, x_ :+ hoas(k))))
+      cps_expr_k(f, f_ => cps_exprs(x, x_ => Expr.App(f_, x_ :+ hoas(k))))
     }
     case Expr.Cons(name, args) =>
       cps_exprs(args, args_ => k(Expr.Cons(name, args_)))
+  }
+}
+
+def cps_expr_c(x: Expr, k: Expr): Expr = {
+  x match {
+    case v@Expr.Var(_) => Expr.App(k, Seq(v))
+    case abs@Expr.Abs(_, _) => Expr.App(k, Seq(cps_abs(abs)))
+    case Expr.Match(x, cases) => cps_expr_k(x, x_ => Expr.Match(x_, cases.map((l, r) => (l, cps_expr_c(r, k)))))
+    case Expr.Cons(name, args) => cps_exprs(args, args_ => Expr.App(k, Seq(Expr.Cons(name, args_))))
+    case Expr.App(f, x) => cps_expr_k(f, f_ => cps_exprs(x, x_ => Expr.App(f_, x_ :+ k)))
   }
 }
 
@@ -113,7 +128,7 @@ def cps_valuedecl(x: ValueDecl) = {
     x.x,
     Expr.Abs(
       Seq(TBind(k, None)),
-      cps_expr(x.b, (y: Expr) => Expr.App(Expr.Var(k), Seq(y)))
+      cps_expr_c(x.b, Expr.Var(k))
     )
   )
 }
