@@ -74,9 +74,9 @@ def freshName = {
   s"base$count"
 }
 
-def cps_exprs(x:Seq[Expr], k:Seq[Expr] => Expr): Expr = {
+def cps_exprs(x: Seq[Expr], k: Seq[Expr] => Expr): Expr = {
   x match {
-    case Seq() => k(Seq())
+    case Seq()   => k(Seq())
     case x +: xs => cps_expr(x, x_ => cps_exprs(xs, xs_ => k(x_ +: xs_)))
   }
 }
@@ -86,20 +86,36 @@ def cps_expr(x: Expr, k: Expr => Expr): Expr = {
     case Expr.Var(_) => k(x)
     case Expr.Abs(xs, y) => {
       val k_ = freshName
-      k(Expr.Abs(xs :+ TBind(k_, None), cps_expr(y, y_ => Expr.App(Expr.Var(k_), Seq(y_)))))
+      k(
+        Expr.Abs(
+          xs :+ TBind(k_, None),
+          cps_expr(y, y_ => Expr.App(Expr.Var(k_), Seq(y_)))
+        )
+      )
     }
     case Expr.Match(x, cases) => {
-      cps_expr(x, x_ => Expr.Match(x_, cases.map((l, r) => (l, cps_expr(r, k)))))
+      cps_expr(
+        x,
+        x_ => Expr.Match(x_, cases.map((l, r) => (l, cps_expr(r, k))))
+      )
     }
     case Expr.App(f, x) => {
       cps_expr(f, f_ => cps_exprs(x, x_ => Expr.App(f_, x_ :+ hoas(k))))
     }
+    case Expr.Cons(name, args) =>
+      cps_exprs(args, args_ => k(Expr.Cons(name, args_)))
   }
 }
 
 def cps_valuedecl(x: ValueDecl) = {
   val k = freshName
-  ValueDecl(x.x, Expr.Abs(Seq(TBind(k, None)), cps_expr(x.b, (y: Expr) => Expr.App(Expr.Var(k), Seq(y)))))
+  ValueDecl(
+    x.x,
+    Expr.Abs(
+      Seq(TBind(k, None)),
+      cps_expr(x.b, (y: Expr) => Expr.App(Expr.Var(k), Seq(y)))
+    )
+  )
 }
 
 def cps(p: Program): Program = {
@@ -109,7 +125,41 @@ def cps(p: Program): Program = {
   ))
 }
 
+def consAux(e: Expr, consDecls: Set[String]): Expr = {
+  e match
+    case Expr.Prim(left, op, right) =>
+      Expr.Prim(consAux(left, consDecls), op, consAux(right, consDecls))
+    case Expr.App(f, xs) =>
+      f match
+        case Expr.Var(name) if consDecls.contains(name) =>
+          Expr.Cons(name, xs.map(consAux(_, consDecls)))
+        case _ => Expr.App(consAux(f, consDecls), xs.map(consAux(_, consDecls)))
+    case Expr.Abs(xs, b) => Expr.Abs(xs, consAux(b, consDecls))
+    case Expr.Let(xs, b) => Expr.Let(xs, consAux(b, consDecls))
+    case Expr.Match(x, bs) =>
+      Expr.Match(
+        consAux(x, consDecls),
+        bs.map(b => (b(0), consAux(b(1), consDecls)))
+      )
+    case _ => e
+
+}
+
+def cons(p: Program): Program = {
+  val consDecls: Set[String] = p.decls.foldLeft(Set.empty)((consDecls, decl) =>
+    decl match {
+      case td: TypeDecl => consDecls ++ td.cons.map(_.name)
+      case _            => consDecls
+    }
+  )
+
+  Program(p.decls.map(_ match {
+    case vd: ValueDecl => vd.copy(b = consAux(vd.b, consDecls))
+    case d             => d
+  }))
+}
+
 @main def main() = {
-  print(pp(cps(drive(CharStreams.fromFileName("example/list.tv")))))
+  print(pp(cps(cons(drive(CharStreams.fromFileName("example/list.tv"))))))
   // pprint.pprintln(drive(CharStreams.fromFileName("example/list.tv")))
 }
