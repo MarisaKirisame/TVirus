@@ -1,0 +1,7 @@
+data Nat = Z() | S(Nat)
+
+let mod2 = \n. match n with
+| S(S(x)) -> mod2(x)
+| x -> x
+
+let main = mod2(S(S(S(Z()))))
