@@ -79,46 +79,50 @@ enum Cont:
   case HO(k: Expr => Expr)
   case FO(k: Expr)
 
+  def toFO = {
+    this match
+      case HO(k) => hoas(k)
+      case FO(k) => k
+  }
+
+  def toHO = {
+    this match
+      case HO(k) => k
+      case FO(k) => (x:Expr) => Expr.App(k, Seq(x))
+  }
+
+def cps_expr_ho(x: Expr, k: Expr => Expr) = cps_expr(x, Cont.HO(k))
+
+def cps_expr_fo(x: Expr, k: Expr) = cps_expr(x, Cont.FO(k))
+
 def cps_exprs(x: Seq[Expr], k: Seq[Expr] => Expr): Expr = {
   x match {
     case Seq()   => k(Seq())
-    case x +: xs => cps_expr_k(x, x_ => cps_exprs(xs, xs_ => k(x_ +: xs_)))
+    case x +: xs => cps_expr_ho(x, x_ => cps_exprs(xs, xs_ => k(x_ +: xs_)))
   }
 }
 
-def cps_abs(x: Expr.Abs): Expr = {
-  val k_ = freshName
-  Expr.Abs(
-    x.xs :+ TBind(k_, None),
-    cps_expr_c(x.b, Expr.Var(k_))
-  )
-}
-
-def cps_expr_k(x: Expr, k: Expr => Expr): Expr = {
+def cps_expr(x: Expr, k: Cont): Expr = {
   x match {
-    case v@Expr.Var(_) => k(v)
-    case abs@Expr.Abs(_, _) => k(cps_abs(abs))
+    case v@Expr.Var(_) => k.toHO(v)
+    case Expr.Abs(xs, b) => {
+      val k_ = freshName
+      k.toHO(Expr.Abs(
+        xs :+ TBind(k_, None),
+        cps_expr_fo(b, Expr.Var(k_))
+      ))
+    }
     case Expr.Match(x, cases) => {
-      cps_expr_k(
+      cps_expr_ho(
         x,
-        x_ => Expr.Match(x_, cases.map((l, r) => (l, cps_expr_k(r, k))))
+        x_ => Expr.Match(x_, cases.map((l, r) => (l, cps_expr(r, k))))
       )
     }
     case Expr.App(f, x) => {
-      cps_expr_k(f, f_ => cps_exprs(x, x_ => Expr.App(f_, x_ :+ hoas(k))))
+      cps_expr_ho(f, f_ => cps_exprs(x, x_ => Expr.App(f_, x_ :+ k.toFO)))
     }
     case Expr.Cons(name, args) =>
-      cps_exprs(args, args_ => k(Expr.Cons(name, args_)))
-  }
-}
-
-def cps_expr_c(x: Expr, k: Expr): Expr = {
-  x match {
-    case v@Expr.Var(_) => Expr.App(k, Seq(v))
-    case abs@Expr.Abs(_, _) => Expr.App(k, Seq(cps_abs(abs)))
-    case Expr.Match(x, cases) => cps_expr_k(x, x_ => Expr.Match(x_, cases.map((l, r) => (l, cps_expr_c(r, k)))))
-    case Expr.Cons(name, args) => cps_exprs(args, args_ => Expr.App(k, Seq(Expr.Cons(name, args_))))
-    case Expr.App(f, x) => cps_expr_k(f, f_ => cps_exprs(x, x_ => Expr.App(f_, x_ :+ k)))
+      cps_exprs(args, args_ => k.toHO(Expr.Cons(name, args_)))
   }
 }
 
@@ -128,7 +132,7 @@ def cps_valuedecl(x: ValueDecl) = {
     x.x,
     Expr.Abs(
       Seq(TBind(k, None)),
-      cps_expr_c(x.b, Expr.Var(k))
+      cps_expr_fo(x.b, Expr.Var(k))
     )
   )
 }
@@ -157,7 +161,6 @@ def consAux(e: Expr, consDecls: Set[String]): Expr = {
         bs.map(b => (b(0), consAux(b(1), consDecls)))
       )
     case _ => e
-
 }
 
 def cons(p: Program): Program = {
