@@ -1,5 +1,7 @@
 data Expr = Zero() | One() | Plus(Expr, Expr) | Mult(Expr, Expr) | Two()
 
+data Tuple2 a = T(a, a)
+
 let simpl = \e. match e with
 | Plus(Zero(), x) -> simpl(x)
 | Plus(x, Zero()) -> simpl(x)
@@ -11,4 +13,18 @@ let simpl = \e. match e with
 | Mult(l, r) -> Mult(simpl(l), simpl(r))
 | x -> x
 
-let main = simpl(Plus(Two(), Mult(One(), Zero())))
+let and = \b1, b2. match T(b1, b2) with
+| T(true, true) -> true
+| _ -> false
+
+let equal = \e1, e2. match T(e1, e2) with
+| T(Zero(), Zero()) -> true
+| T(One(), One()) -> true
+| T(Plus(l1, r1), Plus(l2, r2)) -> and(equal(l1, l2), equal(r1, r2))
+| T(Mult(l1, r1), Mult(l2, r2)) -> and(equal(l1, l2), equal(r1, r2))
+| T(Two(), Two()) -> true
+| _ -> false
+
+let main = equal(
+    simpl(Plus(Two(), Mult(One(), Zero()))),
+    Plus(Two(), Zero()))
