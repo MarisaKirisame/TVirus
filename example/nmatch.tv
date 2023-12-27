@@ -1,0 +1,14 @@
+data Expr = Zero() | One() | Plus(Expr, Expr) | Mult(Expr, Expr) | Two()
+
+let simpl = \e. match e with
+| Plus(Zero(), x) -> simpl(x)
+| Plus(x, Zero()) -> simpl(x)
+| Mult(Zero(), _) -> Zero()
+| Mult(_, Zero()) -> Zero()
+| Mult(One(), x) -> simpl(x)
+| Mult(x, One()) -> simpl(x)
+| Plus(l, r) -> Plus(simpl(l), simpl(r))
+| Mult(l, r) -> Mult(simpl(l), simpl(r))
+| x -> x
+
+let main = simpl(Plus(Two(), Mult(One(), Zero())))
