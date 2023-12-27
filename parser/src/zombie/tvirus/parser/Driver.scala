@@ -47,7 +47,7 @@ object TVirusParserTypeVisitor extends TVirusParserBaseVisitor[Type] {
     Type.Func(Seq(visit(ctx.`type`(0))), visit(ctx.`type`(1)))
 
   override def visitTypeVar(ctx: TypeVarContext): Type =
-    Type.Var(ctx.IDENT().getSymbol().getText())
+    Type.Var(ctx.IDENT().getSymbol().getText(), None)
 
   override def visitTypeApp(ctx: TypeAppContext): Type =
     Type.App(visit(ctx.`type`(0)), visit(ctx.`type`(1)))

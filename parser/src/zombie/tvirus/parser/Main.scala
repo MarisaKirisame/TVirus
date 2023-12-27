@@ -1,14 +1,19 @@
 package zombie.tvirus.parser
 import org.antlr.v4.runtime.CharStreams
+import scala.jdk.CollectionConverters.*
+import java.util.IdentityHashMap
+import collection.mutable
 
 def bracket(x: String) = {
   "(" + x + ")"
 }
 
 def pp_type(x: Type): String = {
-  x match {
-    case Type.Var(name) => name
+  resolve(x) match {
+    case Type.Var(name, _) => name
     case Type.App(f, x) => bracket(pp_type(f) + " " + pp_type(x))
+    case Type.Func(l, r) => "(" + l.map(pp_type).mkString(", ") + ") -> " + pp_type(r)
+    case Type.TyCons(x) => x
   }
 }
 
@@ -18,7 +23,7 @@ def pp_cbind(x: CBind) = {
 
 def pp_typedecl(x: TypeDecl) = {
   x.name + " " + x.xs
-    .mkString(",") + " = " + x.cons.map(pp_cbind).mkString(" | ")
+    .mkString(",") + " = " + x.cons.map(pp_cbind).mkString("\n| ")
 }
 
 def pp_pat(x: Pat): String =
@@ -28,7 +33,7 @@ def pp_pat(x: Pat): String =
     case Pat.Var(x)           => x
 
 def hoas(f: (Expr => Expr)): Expr = {
-  val x_ = freshName
+  val x_ = freshName()
   Expr.Abs(Seq(TBind(x_, None)), f(Expr.Var(x_)))
 }
 
@@ -46,7 +51,7 @@ def pp_expr(x: Expr): String = {
     case Expr.Match(x, cases) =>
       "match " + pp_expr(x) + " with " + cases
         .map(y => pp_pat(y(0)) + " => " + pp_expr(y(1)))
-        .mkString(" | ")
+        .mkString("\n| ")
     case Expr.Cons(con, xs) => con + "(" + xs.map(pp_expr).mkString(", ") + ")"
     case Expr.Let(binding, body) => "let " + binding.map(pp_binding).mkString(", ") + " in " + pp_expr(body)
   }
@@ -67,13 +72,165 @@ def pp(x: Program) = {
     .mkString("\n") + "\n"
 }
 
+def resolve(t: Type): Type = {
+  t match
+    case t@Type.Var(_, None) => t
+    case t@Type.Var(_, Some(x)) => {
+      val r = resolve(x)
+      t.ty = Some(r)
+      r
+    }
+    case t => t
+}
+
+def occur_check(l: Type, r: Type): Boolean = {
+  val recur = (t:Type) => occur_check(l, resolve(t))
+  if (l eq r) {
+    false
+  } else {
+    r match {
+      case Type.Var(_, _) => true
+      case Type.App(f, x) => recur(f) && recur(x)
+      case Type.Func(l, r) => l.forall(recur) && recur(r)
+      case Type.TyCons(_) => true
+    }  
+  }
+}
+
+def is_var(t: Type) = {
+  t match {
+    case Type.Var(_, _) => true
+    case _ => false
+  }
+}
+
+def unify(l_raw: Type, r_raw: Type): Unit = {
+  val l = resolve(l_raw)
+  val r = resolve(r_raw)
+  if (l ne r) {
+    if (is_var(l) && !occur_check(l, r)) {
+      println(pp_type(l))
+      println(pp_type(r))
+      assert(false)
+    }
+    if (is_var(r) && !occur_check(r, l)) {
+      println(l)
+      println(pp_type(l))
+      println(pp_type(r))
+      assert(false)
+    }
+    (l, r) match
+      case (l@Type.Var(_, None), r) => l.ty = Some(r)
+      case (_, r@Type.Var(_, None)) => r.ty = Some(l)
+      case (Type.Func(ll, lr), Type.Func(rl, rr)) => {
+        assert(ll.length == rl.length)
+        ll.zip(rl).map((x, y) => unify(x, y))
+        unify(lr, rr)
+      }
+      case (Type.TyCons(l), Type.TyCons(r)) => {
+        assert(l == r)
+      }
+      case _ => {
+        print(pp_type(l))
+        print(pp_type(r))
+        assert(false)
+      }
+  }
+}
+
+class TyckEnv {
+  val var_map = mutable.Map[String, Type]()
+  val expr_map = IdentityHashMap[Expr, Type]().asScala
+}
+
+def tyck_pat(x: Pat, env: TyckEnv): Type = {
+  val recur = y => tyck_pat(y, env)
+  x match {
+    case Pat.Wildcard => fresh_tv()
+    case Pat.Cons(name, xs) => tyck_expr(Expr.App(Expr.Var(name), xs.map(x => Expr.DeclValue(recur(x)))), env)
+    case Pat.Var(name) => tyck_expr(Expr.Var(name), env)
+  }
+}
+
+def tyck_expr(x: Expr, env: TyckEnv): Type = {
+  val recur = y => tyck_expr(y, env)
+  val t = x match {
+    case Expr.Var(v) => {
+      env.var_map.get(v) match {
+        case Some(t) => t
+        case None => {
+          val tv = fresh_tv()
+          env.var_map.put(v, tv)
+          tv
+        }
+      }
+    }
+    case Expr.Abs(bindings, body) => {
+      Type.Func(bindings.map(bind => recur(Expr.Var(bind.name))), recur(body))
+    }
+    case Expr.Match(x, cases) => {
+      val x_ty = recur(x)
+      val out_ty = fresh_tv()
+      cases.map((lhs, rhs) => {
+        unify(x_ty, tyck_pat(lhs, env))
+        unify(out_ty, recur(rhs))
+      })
+      out_ty
+    }
+    case Expr.App(f, xs) => {
+      val out_ty = fresh_tv()
+      unify(recur(f), Type.Func(xs.map(recur), out_ty))
+      out_ty
+    }
+    case Expr.Cons(f, xs) => {
+      recur(Expr.App(Expr.Var(f), xs))
+    }
+    case Expr.DeclValue(t) => t
+  }
+  env.expr_map.put(x, t)
+  t
+}
+
+def fresh_tv(): Type = {
+  Type.Var(freshName(), None)
+}
+
+def TyApps(f: Type, xs: Seq[Type]): Type = {
+  if (xs.isEmpty) {
+    f
+  } else {
+    TyApps(Type.App(f, xs.head), xs.tail)
+  }
+}
+
+def tyck_td(td: TypeDecl, env: TyckEnv): Unit = {
+  td.cons.map((cb:CBind) => env.var_map.put(cb.name, Type.Func(cb.args, TyApps(Type.TyCons(td.name), td.xs.map(t => Type.Var(t, None))))))
+}
+
+def tyck_vd(vd: ValueDecl, env: TyckEnv): Unit = {
+  env.var_map.put(vd.x.name, tyck_expr(vd.b, env))
+}
+
+def tyck_program(p: Program) = {
+  val env = TyckEnv()
+  p.decls.map(_ match {
+    case vd: ValueDecl => { }
+    case td: TypeDecl => tyck_td(td, env)
+  })
+  p.decls.map(_ match {
+    case vd: ValueDecl => tyck_vd(vd, env)
+    case td: TypeDecl => { }
+  })
+  env
+}
+
 def cps_typedecl(x: TypeDecl) = {
   x
 }
 
 var count = 0
 
-def freshName = {
+def freshName() = {
   count = count + 1
   s"base$count"
 }
@@ -109,7 +266,7 @@ def cps_expr(x: Expr, k: Cont): Expr = {
   x match {
     case v@Expr.Var(_) => k.toHO(v)
     case Expr.Abs(xs, b) => {
-      val k_ = freshName
+      val k_ = freshName()
       k.toHO(Expr.Abs(
         xs :+ TBind(k_, None),
         cps_expr_fo(b, Expr.Var(k_))
@@ -130,7 +287,7 @@ def cps_expr(x: Expr, k: Cont): Expr = {
 }
 
 def cps_valuedecl(x: ValueDecl) = {
-  val k = freshName
+  val k = freshName()
   ValueDecl(
     x.x,
     Expr.Abs(
@@ -183,10 +340,11 @@ def cons(p: Program): Program = {
 
 def get_cons(): Seq[SCons] = {
   Seq(SCons("Z", 0), SCons("S", 1))
+  //Seq(SCons("Zero", 0), SCons("One", 0), SCons("Two", 0), SCons("Plus", 2), SCons("Mult", 2))
 }
 
 def let_(v: Expr, b: Expr => Expr): Expr = {
-  val fresh = freshName
+  val fresh = freshName()
   Expr.Let(Seq((SBind(fresh, None), v)), b(Expr.Var(fresh)))
 }
 
@@ -231,12 +389,12 @@ def transform_program(lhs: Seq[Expr], rhs: Seq[(Seq[Pat], Expr)]): Expr = {
     if (pats.forall(_ match { case Pat.Wildcard => true case _ => false })) {
       transform_program(lhs.tail, reduce_rhs_wildcard(rhs))
     } else if (pats.forall(_ match { case Pat.Wildcard => true case Pat.Var(_) => true case _ => false })) {
-      val name = freshName
+      val name = freshName()
       Expr.Let(Seq((SBind(name, None), lhs.head)), transform_program(lhs.tail, reduce_rhs_var(name, rhs)))
     } else {
       val sconss = get_cons()
       Expr.Match(lhs.head, sconss.flatMap(scons => {
-        val names:Seq[String] = Seq.fill(scons.narg)(freshName)
+        val names:Seq[String] = Seq.fill(scons.narg)({freshName()})
         val cons = Pat.Cons(scons.name, names.map(name => Pat.Var(name)))
         val reduced_rhs: Seq[(Seq[Pat], Expr)] = reduce_rhs_cons(scons.name, names, rhs)
         Seq((cons, transform_program(names.map(Expr.Var) ++ lhs.tail, reduced_rhs)))
@@ -270,5 +428,8 @@ def unnest_match(p: Program): Program = {
   val x = cons(drive(CharStreams.fromFileName("example/mod2.tv")))
   print(pp(x))
   print(pp(unnest_match(x)))
+  val vm = tyck_program(x).var_map
+  for ((k,v) <- vm) { println((k, pp_type(v))) }
+  println(vm)
   // pprint.pprintln(drive(CharStreams.fromFileName("example/list.tv")))
 }

@@ -9,9 +9,9 @@ enum PrimType:
 enum Type:
   case Prim(t: PrimType)
   case Func(xs: Seq[Type], r: Type)
-  case Var(name: String)
+  case Var(name: String, var ty: Option[Type])
   case App(f: Type, x: Type)
-  case TypeVar(var ty: Type)
+  case TyCons(name: String)
 
 enum Scheme:
   case Poly(xs: Seq[String], t: Type)
@@ -40,16 +40,7 @@ enum Expr:
   case Let(xs: Seq[(SBind, Expr)], b: Expr)
   case Match(x: Expr, bs: Seq[(Pat, Expr)])
   case Cons(name: String, args: Seq[Expr])
-
-enum AExpr:
-  case Prim(left: AExpr, op: PrimOp, right: AExpr, ty: Type)
-  case Var(name: String, ty: Type)
-  case LitInt(inner: Int, ty: Type)
-  case App(f: AExpr, xs: Seq[AExpr], ty: Type)
-  case Abs(xs: Seq[TBind], b: AExpr, ty: Type)
-  case Let(xs: Seq[(SBind, AExpr)], b: AExpr, ty: Type)
-  case Match(x: AExpr, bs: Seq[(Pat, AExpr)], ty: Type)
-  case Cons(name: String, args: Seq[AExpr], ty: Type)
+  case DeclValue(t: Type)
 
 case class ValueDecl(x: SBind, b: Expr)
 
