@@ -1,6 +1,6 @@
 data Expr = Zero() | One() | Plus(Expr, Expr) | Mult(Expr, Expr) | Two()
 
-data Tuple2 a = T(a, a)
+data Tuple2 a b = T(a, b)
 
 let simpl = \e. match e with
 | Plus(Zero(), x) -> simpl(x)
