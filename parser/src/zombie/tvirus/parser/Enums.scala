@@ -26,7 +26,10 @@ case class TypeDecl(name: String, xs: Seq[String], cons: Seq[CBind])
 enum Pat:
   case Wildcard
   case Var(name: String)
-  case Cons(name: String, args: Seq[Pat])
+  case Cons(name: String, arg: Seq[Pat])
+
+// a simple constructor pattern. no nesting allowed
+case class SCons(name: String, narg: Int)
 
 enum Expr:
   case Prim(left: Expr, op: PrimOp, right: Expr)
