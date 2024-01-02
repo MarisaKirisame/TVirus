@@ -61,20 +61,15 @@ object TVirusParserSchemeVisitor extends TVirusParserBaseVisitor[Scheme] {
     )
 }
 
-object TVirusParserTBindVisitor extends TVirusParserBaseVisitor[TBind] {
-  override def visitTBind(ctx: TBindContext): TBind =
-    TBind(
-      ctx.IDENT().getSymbol().getText(),
-      Option(ctx.`type`()).map(TVirusParserTypeVisitor.visit)
-    )
+object TVirusParserTBindVisitor extends TVirusParserBaseVisitor[String] {
+  override def visitTBind(ctx: TBindContext): String =
+    ctx.IDENT().getSymbol().getText()
+
 }
 
-object TVirusParserSBindVisitor extends TVirusParserBaseVisitor[SBind] {
-  override def visitSBind(ctx: SBindContext): SBind =
-    SBind(
-      ctx.IDENT().getSymbol().getText(),
-      Option(ctx.scheme()).map(TVirusParserSchemeVisitor.visit)
-    )
+object TVirusParserSBindVisitor extends TVirusParserBaseVisitor[String] {
+  override def visitSBind(ctx: SBindContext): String =
+    ctx.IDENT().getSymbol().getText()
 }
 
 object TVirusParserCBindVisitor extends TVirusParserBaseVisitor[CBind] {

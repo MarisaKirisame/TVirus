@@ -8,6 +8,7 @@ out/
 ### Java template
 # Compiled class file
 *.class
+output.cpp
 
 # Log file
 *.log
