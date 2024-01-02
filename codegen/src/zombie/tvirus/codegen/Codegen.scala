@@ -45,6 +45,12 @@ def codegen_vd_fwd(x: ValueDecl, env: CodeGenEnv): String = {
   }
 }
 
+def simple_pat_to_name(p: Pat): String = {
+  p match {
+    case Pat.Var(name) => name
+  }
+}
+
 def codegen_case(name: String, c: (Pat, Expr), env: CodeGenEnv): String = {
   c(0) match {
     case Pat.Wildcard => codegen_expr(c(1), env)
@@ -80,6 +86,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv): String = {
       s"""[&](){
         auto ${fn} = ${recur(x)};
         ${cases.map(c => codegen_case(fn, c, env)).mkString("\n")}
+        assert(false);
       }()"""
     }
     case Expr.App(f, xs) => {
@@ -182,6 +189,7 @@ def codegen(x: Program): String = {
   #include <memory>
   #include <variant>
   #include <functional>
+  #include <cassert>
   """ ++
     x.decls
       .map(_ match {
@@ -208,7 +216,6 @@ def codegen(x: Program): String = {
 }
 
 def compile(x: String) = {
-  println(x)
   try {
     Process("rm output.cpp").!
     // todo use os-lib
@@ -219,6 +226,8 @@ def compile(x: String) = {
     case e: IOException =>
       println("fail to write into target-file" + e.getMessage)
   }
+  Process("clang-format -i output.cpp").!
+  Process("cat output.cpp").!
   Process("g++ output.cpp").!
   println()
 }

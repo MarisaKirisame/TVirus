@@ -151,8 +151,44 @@ def let_(v: Expr, b: Expr => Expr): Expr = {
   Expr.Let(Seq((fresh, v)), b(Expr.Var(fresh)))
 }
 
+def refresh_expr(x: Expr, remap: Map[String, String]): Expr = {
+  val recurse = x => refresh_expr(x, remap)
+  x match {
+    case Expr.Var(n) => Expr.Var(remap.get(n).getOrElse(n))
+    case Expr.Abs(bindings, body) => {
+      val (new_bindings, new_remap) = bindings.foldLeft((Seq[String](), remap))((res, next_name) => {
+        val fn = freshName()
+        assert(res(1).get(next_name).isEmpty)
+        (res(0) :+ fn, res(1) + (next_name -> fn))
+      })
+      Expr.Abs(new_bindings, refresh_expr(body, new_remap))
+    }
+    case Expr.Let(bindings, body) => {
+      val (new_bindings, new_remap) = bindings.foldLeft((Seq[(String, Expr)](), remap))((res, next_binding) => {
+        val next_name = next_binding(0)
+        val fn = freshName()
+        assert(res(1).get(next_name).isEmpty)
+        (res(0) :+ (fn, refresh_expr(next_binding(1), res(1))), res(1) + (next_name -> fn))
+      })
+      Expr.Let(new_bindings, refresh_expr(body, new_remap))
+    }
+    case Expr.Match(x, cases) => {
+      Expr.Match(recurse(x), cases.map((lhs, rhs) => (lhs, recurse(rhs))))
+    }
+    case Expr.Cons(name, xs) => {
+      Expr.Cons(name, xs.map(recurse))
+    }
+    case Expr.App(f, xs) => {
+      Expr.App(recurse(f), xs.map(recurse))
+    }
+  }
+}
+
 def refresh(p: Program): Program = {
-  p
+  Program(p.decls.map(_ match {
+    case vd: ValueDecl => ValueDecl(vd.x, refresh_expr(vd.b, Map()))
+    case td: TypeDecl => td
+  }))
 }
 
 def merge_abs_app_expr(x: Expr): Expr = {
@@ -185,52 +221,120 @@ def merge_abs_app(p: Program): Program = {
   }))
 }
 
-
-def simple_pat_to_name(p: Pat): String = {
-  p match {
-    case Pat.Var(name) => name
+def expr_is_fresh(x: Expr, seen: mutable.Set[String]): Boolean = {
+  val recurse = x => expr_is_fresh(x, seen)
+  x match {
+    case Expr.Var(_) => true
+    case Expr.Abs(bindings, body) => {
+      var ret = true
+      bindings.map(n => {
+        if (seen.contains(n)) {
+          ret = false
+        } else {
+          seen.add(n)
+        }
+      })
+      ret && recurse(body)
+    }
+    case Expr.Match(x, cases) => {
+      recurse(x) && cases.forall((lhs, rhs) => recurse(rhs))
+    }
+    case Expr.Let(bindings, body) => {
+      var ret = true
+      bindings.map((n, rhs) => {
+        if (seen.contains(n)) {
+          ret = false
+        } else {
+          seen.add(n)
+        }
+      })
+      ret && recurse(body)
+    }
+    case Expr.App(f, xs) => recurse(f) && xs.forall(recurse)
+    case Expr.Cons(name, xs) => xs.forall(recurse)
   }
 }
 
-
-def vd_is_fresh(v: ValueDecl): Boolean = {
-  true
-}
-
-def td_is_fresh(t: TypeDecl): Boolean = {
-  true
-}
-
 def is_fresh(p: Program): Boolean = {
+  val seen = mutable.Set[String]()
   p.decls.forall(_ match {
-    case vd: ValueDecl => vd_is_fresh(vd)
-    case td: TypeDecl  => td_is_fresh(td)
+    case vd: ValueDecl => expr_is_fresh(vd.b, seen)
+    case td: TypeDecl  => true
   })
 }
 
-def let_analysis(x: Expr, var_map: mutable.Map[String, (Expr, Int)]): Unit = {}
+def let_analysis(x: Expr, var_map: mutable.Map[String, (Expr, Int)]): Unit = {
+  val recurse = x => let_analysis(x, var_map)
+  x match {
+    case Expr.Var(n) => {
+      var_map.get(n) match {
+        case None => { }
+        case Some((e, i)) => var_map.put(n, (e, i + 1))
+      }
+    }
+    case Expr.Let(bindings, body) => {
+      bindings.map((lhs, rhs) => {
+        assert(var_map.get(lhs).isEmpty)
+        var_map.put(lhs, (rhs, 0))
+        recurse(rhs)
+      })
+      recurse(body)
+    }
+    case Expr.Abs(args, body) => {
+      recurse(body)
+    }
+    case Expr.Match(x, cases) => {
+      recurse(x)
+      cases.map((lhs, rhs) => recurse(rhs))
+    }
+    case Expr.App(f, xs) => {
+      recurse(f)
+      xs.map(recurse)
+    }
+    case Expr.Cons(name, xs) => {
+      xs.map(recurse)
+    }
+  }
+}
 
 def unlet(x: Expr, var_map: mutable.Map[String, (Expr, Int)]): Expr = {
   val recurse = x => unlet(x, var_map)
+  val simp_name = (name: String) => {
+    var_map.get(name) match {
+      case None => None
+      case Some((e, i)) => {
+        if (i > 1) {
+          None
+        } else {
+          assert(i == 1)
+          Some(e)
+        }
+      }
+    }
+  }
   x match {
     case Expr.App(f, xs)          => Expr.App(recurse(f), xs.map(recurse))
     case Expr.Abs(bindings, body) => Expr.Abs(bindings, recurse(body))
     case Expr.Match(x, cases) =>
       Expr.Match(recurse(x), cases.map((lhs, rhs) => (lhs, recurse(rhs))))
     case Expr.Var(n) => {
-      var_map.get(n) match {
+      simp_name(n) match {
         case None => Expr.Var(n)
-        case Some((e, i)) => {
-          if (i > 1) {
-            Expr.Var(n)
-          } else {
-            assert(i == 1)
-            recurse(e)
-          }
-        }
+        case Some(e) => recurse(e)
       }
     }
-    case _ => x
+    case Expr.Let(binds, in) => {
+      val bindings = binds.filter((lhs, rhs) => var_map.get(lhs) match {
+        case None => true
+        case Some((_, i)) => i > 1
+      }).map((lhs, rhs) => (lhs, recurse(rhs)))
+      if (bindings.isEmpty) {
+        recurse(in)
+      } else {
+        Expr.Let(bindings, recurse(in))
+      }
+    }
+    case Expr.Cons(name, args) => Expr.Cons(name, args.map(recurse))
   }
 }
 
@@ -241,11 +345,10 @@ def let_simplification(p: Program): Program = {
     case vd: ValueDecl => let_analysis(vd.b, var_map)
     case td: TypeDecl  => {}
   })
-  p.decls.map(_ match {
+  Program(p.decls.map(_ match {
     case vd: ValueDecl => ValueDecl(vd.x, unlet(vd.b, var_map))
-    case td: TypeDecl  => {}
-  })
-  p
+    case td: TypeDecl  => td
+  }))
 }
 
 @main def main() = {
