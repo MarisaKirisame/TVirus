@@ -2,7 +2,7 @@ package zombie.tvirus.codegen
 import org.antlr.v4.runtime.CharStreams
 import java.io.FileWriter
 import java.io.IOException
-import zombie.tvirus.parser.* 
+import zombie.tvirus.parser.*
 import collection.mutable
 
 def hoas(f: (Expr => Expr)): Expr = {
@@ -101,49 +101,53 @@ def cps_valuedecl(x: ValueDecl) = {
 }
 
 def cps(p: Program): Program = {
-  Program(p.decls.map(_.match
-    case x: TypeDecl  => cps_typedecl(x)
-    case x: ValueDecl => cps_valuedecl(x)
-  ))
+  Program(p.tds.map(cps_typedecl), p.vds.map(cps_valuedecl))
 }
 
-def consAux(e: Expr, consDecls: Set[String]): Expr = {
-  val recur = x => consAux(x, consDecls)
+def consExpr(e: Expr, consDecls: Set[String]): Expr = {
+  val recur = x => consExpr(x, consDecls)
   e match
     case Expr.Prim(left, op, right) =>
-      Expr.Prim(consAux(left, consDecls), op, consAux(right, consDecls))
+      Expr.Prim(recur(left), op, recur(right))
     case Expr.App(f, xs) =>
       f match
         case Expr.Var(name) if consDecls.contains(name) =>
-          Expr.Cons(name, xs.map(consAux(_, consDecls)))
-        case _ => Expr.App(consAux(f, consDecls), xs.map(recur))
+          Expr.Cons(name, xs.map(recur))
+        case _ => Expr.App(recur(f), xs.map(recur))
     case Expr.Abs(xs, b) => Expr.Abs(xs, recur(b))
-    case Expr.Let(xs, b) => Expr.Let(xs, consAux(b, consDecls))
+    case Expr.Let(xs, b) => Expr.Let(xs.map((l, r) => (l, recur(r))), recur(b))
     case Expr.Match(x, bs) =>
       Expr.Match(
-        consAux(x, consDecls),
-        bs.map(b => (b(0), consAux(b(1), consDecls)))
+        recur(x),
+        bs.map(b => (b(0), recur(b(1))))
       )
     case Expr.Var(n) => Expr.Var(n)
 }
 
-def cons(p: Program): Program = {
-  val consDecls: Set[String] = p.decls.foldLeft(Set.empty)((consDecls, decl) =>
-    decl match {
-      case td: TypeDecl  => consDecls ++ td.cons.map(_.name)
-      case vd: ValueDecl => consDecls
-    }
-  )
-
-  Program(p.decls.map(_ match {
-    case vd: ValueDecl => vd.copy(b = consAux(vd.b, consDecls))
-    case d             => d
-  }))
+def consType(x: Type, decls: Set[String]): Type = {
+  val recurse = x => consType(x, decls)
+  resolve(x) match {
+    case v@Type.Var(_, _) => if (decls.contains(v.name)) { Type.TyCons(v.name) } else { v }    
+    case Type.App(f, xs) => Type.App(recurse(f), xs.map(recurse))
+  }
 }
-
-def get_cons(): Seq[SCons] = {
-  Seq(SCons("Z", 0), SCons("S", 1))
-  // Seq(SCons("Zero", 0), SCons("One", 0), SCons("Two", 0), SCons("Plus", 2), SCons("Mult", 2))
+def cons(p: Program): Program = {
+  val consDecls: Set[String] = p.tds.foldLeft(Set.empty)((consDecls, td) =>
+    consDecls ++ td.cons.map(_.name)
+  )
+  val tconsDecls: Set[String] = p.tds.map(_.name).toSet
+  Program(
+    p.tds.map(td =>
+      TypeDecl(
+        td.name,
+        td.xs,
+        td.cons.map(cb =>
+          CBind(cb.name, cb.args.map(t => consType(t, tconsDecls)))
+        )
+      )
+    ),
+    p.vds.map(vd => vd.copy(b = consExpr(vd.b, consDecls)))
+  )
 }
 
 def let_(v: Expr, b: Expr => Expr): Expr = {
@@ -156,19 +160,25 @@ def refresh_expr(x: Expr, remap: Map[String, String]): Expr = {
   x match {
     case Expr.Var(n) => Expr.Var(remap.get(n).getOrElse(n))
     case Expr.Abs(bindings, body) => {
-      val (new_bindings, new_remap) = bindings.foldLeft((Seq[String](), remap))((res, next_name) => {
-        val fn = freshName()
-        assert(res(1).get(next_name).isEmpty)
-        (res(0) :+ fn, res(1) + (next_name -> fn))
-      })
+      val (new_bindings, new_remap) =
+        bindings.foldLeft((Seq[String](), remap))((res, next_name) => {
+          val fn = freshName()
+          assert(res(1).get(next_name).isEmpty)
+          (res(0) :+ fn, res(1) + (next_name -> fn))
+        })
       Expr.Abs(new_bindings, refresh_expr(body, new_remap))
     }
     case Expr.Let(bindings, body) => {
-      val (new_bindings, new_remap) = bindings.foldLeft((Seq[(String, Expr)](), remap))((res, next_binding) => {
+      val (new_bindings, new_remap) = bindings.foldLeft(
+        (Seq[(String, Expr)](), remap)
+      )((res, next_binding) => {
         val next_name = next_binding(0)
         val fn = freshName()
         assert(res(1).get(next_name).isEmpty)
-        (res(0) :+ (fn, refresh_expr(next_binding(1), res(1))), res(1) + (next_name -> fn))
+        (
+          res(0) :+ (fn, refresh_expr(next_binding(1), res(1))),
+          res(1) + (next_name -> fn)
+        )
       })
       Expr.Let(new_bindings, refresh_expr(body, new_remap))
     }
@@ -185,10 +195,7 @@ def refresh_expr(x: Expr, remap: Map[String, String]): Expr = {
 }
 
 def refresh(p: Program): Program = {
-  Program(p.decls.map(_ match {
-    case vd: ValueDecl => ValueDecl(vd.x, refresh_expr(vd.b, Map()))
-    case td: TypeDecl => td
-  }))
+  Program(p.tds, p.vds.map(vd => ValueDecl(vd.x, refresh_expr(vd.b, Map()))))
 }
 
 def merge_abs_app_expr(x: Expr): Expr = {
@@ -215,10 +222,7 @@ def merge_abs_app_expr(x: Expr): Expr = {
 }
 
 def merge_abs_app(p: Program): Program = {
-  Program(p.decls.map(_ match {
-    case ValueDecl(x, b) => ValueDecl(x, merge_abs_app_expr(b))
-    case td: TypeDecl    => td
-  }))
+  Program(p.tds, p.vds.map(vd => ValueDecl(vd.x, merge_abs_app_expr(vd.b))))
 }
 
 def expr_is_fresh(x: Expr, seen: mutable.Set[String]): Boolean = {
@@ -250,17 +254,14 @@ def expr_is_fresh(x: Expr, seen: mutable.Set[String]): Boolean = {
       })
       ret && recurse(body)
     }
-    case Expr.App(f, xs) => recurse(f) && xs.forall(recurse)
+    case Expr.App(f, xs)     => recurse(f) && xs.forall(recurse)
     case Expr.Cons(name, xs) => xs.forall(recurse)
   }
 }
 
 def is_fresh(p: Program): Boolean = {
   val seen = mutable.Set[String]()
-  p.decls.forall(_ match {
-    case vd: ValueDecl => expr_is_fresh(vd.b, seen)
-    case td: TypeDecl  => true
-  })
+  p.vds.forall(vd => expr_is_fresh(vd.b, seen))
 }
 
 def let_analysis(x: Expr, var_map: mutable.Map[String, (Expr, Int)]): Unit = {
@@ -268,7 +269,7 @@ def let_analysis(x: Expr, var_map: mutable.Map[String, (Expr, Int)]): Unit = {
   x match {
     case Expr.Var(n) => {
       var_map.get(n) match {
-        case None => { }
+        case None         => {}
         case Some((e, i)) => var_map.put(n, (e, i + 1))
       }
     }
@@ -319,15 +320,19 @@ def unlet(x: Expr, var_map: mutable.Map[String, (Expr, Int)]): Expr = {
       Expr.Match(recurse(x), cases.map((lhs, rhs) => (lhs, recurse(rhs))))
     case Expr.Var(n) => {
       simp_name(n) match {
-        case None => Expr.Var(n)
+        case None    => Expr.Var(n)
         case Some(e) => recurse(e)
       }
     }
     case Expr.Let(binds, in) => {
-      val bindings = binds.filter((lhs, rhs) => var_map.get(lhs) match {
-        case None => true
-        case Some((_, i)) => i > 1
-      }).map((lhs, rhs) => (lhs, recurse(rhs)))
+      val bindings = binds
+        .filter((lhs, rhs) =>
+          var_map.get(lhs) match {
+            case None         => true
+            case Some((_, i)) => i > 1
+          }
+        )
+        .map((lhs, rhs) => (lhs, recurse(rhs)))
       if (bindings.isEmpty) {
         recurse(in)
       } else {
@@ -341,20 +346,22 @@ def unlet(x: Expr, var_map: mutable.Map[String, (Expr, Int)]): Expr = {
 def let_simplification(p: Program): Program = {
   assert(is_fresh(p))
   val var_map = mutable.Map[String, (Expr, Int)]()
-  p.decls.map(_ match {
-    case vd: ValueDecl => let_analysis(vd.b, var_map)
-    case td: TypeDecl  => {}
-  })
-  Program(p.decls.map(_ match {
-    case vd: ValueDecl => ValueDecl(vd.x, unlet(vd.b, var_map))
-    case td: TypeDecl  => td
-  }))
+  p.vds.map(vd => let_analysis(vd.b, var_map))
+  Program(p.tds, p.vds.map(vd => ValueDecl(vd.x, unlet(vd.b, var_map))))
 }
 
 @main def main() = {
-  var x = cons(drive(CharStreams.fromFileName("example/mod2.tv")))
+  val program = "example/mod2.tv"
+  //val program = "example/list.tv"
+  var x = refresh(cons(drive(CharStreams.fromFileName(program))))
   println(pp(x))
-  x = let_simplification(merge_abs_app(cps(unnest_match(x))))
+  x = unnest_match(x)
+  //x = let_simplification(merge_abs_app(cps(unnest_match(x))))
   println(pp(x))
+  val tyck = TyckEnv(x)
+  for ((k, v) <- tyck.var_map) {
+    println((k, pp_type(v)))
+  }
+  //print(codegen(x))
   compile(codegen(x))
 }

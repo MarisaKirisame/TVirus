@@ -50,7 +50,7 @@ object TVirusParserTypeVisitor extends TVirusParserBaseVisitor[Type] {
     Type.Var(ctx.IDENT().getSymbol().getText(), None)
 
   override def visitTypeApp(ctx: TypeAppContext): Type =
-    Type.App(visit(ctx.`type`(0)), visit(ctx.`type`(1)))
+    Type.App(visit(ctx.`type`(0)), Seq(visit(ctx.`type`(1))))
 }
 
 object TVirusParserSchemeVisitor extends TVirusParserBaseVisitor[Scheme] {
@@ -175,13 +175,22 @@ object TVirusParserValueDeclVisitor extends TVirusParserBaseVisitor[ValueDecl] {
 object TVirusParserProgramVisitor extends TVirusParserBaseVisitor[Program] {
   override def visitProgram(ctx: ProgramContext): Program = {
     Program(
-      ctx.children.asScala.toSeq.map(t =>
+      ctx.children.asScala.toSeq.flatMap(t =>
         if (t.isInstanceOf[TypeDeclContext]) {
-          TVirusParserTypeDeclVisitor.visit(t.asInstanceOf[TypeDeclContext])
+          Seq(TVirusParserTypeDeclVisitor.visit(t.asInstanceOf[TypeDeclContext]))
         } else if (t.isInstanceOf[ValueDeclContext]) {
-          TVirusParserValueDeclVisitor.visit(t.asInstanceOf[ValueDeclContext])
+          Seq()
         } else {
-          ???
+          assert(false)
+        }
+      ),
+      ctx.children.asScala.toSeq.flatMap(t =>
+        if (t.isInstanceOf[TypeDeclContext]) {
+          Seq()
+        } else if (t.isInstanceOf[ValueDeclContext]) {
+          Seq(TVirusParserValueDeclVisitor.visit(t.asInstanceOf[ValueDeclContext]))
+        } else {
+          assert(false)
         }
       )
     )

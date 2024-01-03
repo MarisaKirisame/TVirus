@@ -1,6 +1,6 @@
 package zombie.tvirus.codegen
 
-import zombie.tvirus.parser.* 
+import zombie.tvirus.parser.*
 
 def bracket(x: String) = {
   "(" + x + ")"
@@ -9,10 +9,11 @@ def bracket(x: String) = {
 def pp_type(x: Type): String = {
   resolve(x) match {
     case Type.Var(name, _) => name
-    case Type.App(f, x)    => bracket(pp_type(f) + " " + pp_type(x))
+    case Type.App(f, x)    => bracket(pp_type(f) + bracket(x.map(pp_type).mkString(", ")))
     case Type.Func(l, r) =>
       "(" + l.map(pp_type).mkString(", ") + ") -> " + pp_type(r)
     case Type.TyCons(x) => x
+    case Type.TypeScheme(xs, y) => s"forall ${xs.mkString(" ")}, ${pp_type(y)}"
   }
 }
 
@@ -57,12 +58,5 @@ def pp_valdecl(x: ValueDecl) = {
 }
 
 def pp(x: Program) = {
-  x.decls
-    .map(y =>
-      y match {
-        case t: TypeDecl  => pp_typedecl(t)
-        case v: ValueDecl => pp_valdecl(v)
-      }
-    )
-    .mkString("\n") + "\n"
+  x.tds.map(pp_typedecl).mkString("\n") + "\n" + x.vds.map(pp_valdecl).mkString("\n")
 }

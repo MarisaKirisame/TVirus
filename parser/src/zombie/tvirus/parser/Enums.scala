@@ -10,8 +10,9 @@ enum Type:
   case Prim(t: PrimType)
   case Func(xs: Seq[Type], r: Type)
   case Var(name: String, var ty: Option[Type])
-  case App(f: Type, x: Type)
+  case App(f: Type, xs: Seq[Type])
   case TyCons(name: String)
+  case TypeScheme(xs: Seq[String], t: Type)
 
 enum Scheme:
   case Poly(xs: Seq[String], t: Type)
@@ -42,4 +43,4 @@ enum Expr:
 
 case class ValueDecl(x: String, b: Expr)
 
-case class Program(decls: Seq[TypeDecl | ValueDecl])
+case class Program(tds: Seq[TypeDecl], vds: Seq[ValueDecl])

@@ -1,5 +1,5 @@
 package zombie.tvirus.codegen
-import zombie.tvirus.parser.* 
+import zombie.tvirus.parser.*
 
 def reduce_rhs_wildcard(rhs: Seq[(Seq[Pat], Expr)]) = {
   rhs.map((pats, e) => (pats.tail, e))
@@ -41,7 +41,20 @@ def reduce_rhs_cons(
   )
 }
 
-def transform_program(lhs: Seq[Expr], rhs: Seq[(Seq[Pat], Expr)]): Expr = {
+class UnnestMatchEnv(p: Program) {
+  val typename_to_scons = p.tds
+    .map(x => (x.name, x.cons.map(y => SCons(y.name, y.args.length))))
+    .toMap
+
+  val consname_to_typename =
+    p.tds.flatMap(x => x.cons.map(y => (y.name, x.name))).toMap
+}
+
+def transform_program(
+    lhs: Seq[Expr],
+    rhs: Seq[(Seq[Pat], Expr)],
+    env: UnnestMatchEnv
+): Expr = {
   assert(rhs.forall((p, _) => p.length == lhs.length))
   if (rhs.length == 0) {
     Expr.Var("fail")
@@ -56,7 +69,7 @@ def transform_program(lhs: Seq[Expr], rhs: Seq[(Seq[Pat], Expr)]): Expr = {
         case _            => false
       })
     ) {
-      transform_program(lhs.tail, reduce_rhs_wildcard(rhs))
+      transform_program(lhs.tail, reduce_rhs_wildcard(rhs), env)
     } else if (
       pats.forall(_ match {
         case Pat.Wildcard => true
@@ -67,10 +80,19 @@ def transform_program(lhs: Seq[Expr], rhs: Seq[(Seq[Pat], Expr)]): Expr = {
       val name = freshName()
       Expr.Let(
         Seq((name, lhs.head)),
-        transform_program(lhs.tail, reduce_rhs_var(name, rhs))
+        transform_program(lhs.tail, reduce_rhs_var(name, rhs), env)
       )
     } else {
-      val sconss = get_cons()
+      val sconss = env.typename_to_scons(
+        env.consname_to_typename(
+          pats
+            .flatMap(_ match {
+              case Pat.Cons(name, _) => Seq(name)
+              case _                 => Seq()
+            })
+            .head
+        )
+      )
       Expr.Match(
         lhs.head,
         sconss.flatMap(scons => {
@@ -81,7 +103,11 @@ def transform_program(lhs: Seq[Expr], rhs: Seq[(Seq[Pat], Expr)]): Expr = {
           Seq(
             (
               cons,
-              transform_program(names.map(Expr.Var) ++ lhs.tail, reduced_rhs)
+              transform_program(
+                names.map(Expr.Var) ++ lhs.tail,
+                reduced_rhs,
+                env
+              )
             )
           )
         })
@@ -90,28 +116,37 @@ def transform_program(lhs: Seq[Expr], rhs: Seq[(Seq[Pat], Expr)]): Expr = {
   }
 }
 
-def unnest_matching(x: Expr, cases: Seq[(Pat, Expr)]): Expr = {
-  transform_program(Seq(x), cases.map((p, e) => (Seq(p), e)))
+def unnest_matching(
+    x: Expr,
+    cases: Seq[(Pat, Expr)],
+    env: UnnestMatchEnv
+): Expr = {
+  transform_program(Seq(x), cases.map((p, e) => (Seq(p), e)), env)
 }
 
-def unnest_match_expr(x: Expr): Expr = {
+def unnest_match_expr(x: Expr, env: UnnestMatchEnv): Expr = {
+  val recurse = x => unnest_match_expr(x, env)
   x match {
     case Expr.Var(v)    => Expr.Var(v)
-    case Expr.Abs(x, b) => Expr.Abs(x, unnest_match_expr(b))
+    case Expr.Abs(x, b) => Expr.Abs(x, recurse(b))
     case Expr.Match(x, cases) =>
       unnest_matching(
-        unnest_match_expr(x),
-        cases.map((l, r) => (l, unnest_match_expr(r)))
+        recurse(x),
+        cases.map((l, r) => (l, recurse(r))),
+        env
       )
     case Expr.App(f, x) =>
-      Expr.App(unnest_match_expr(f), x.map(unnest_match_expr))
-    case Expr.Cons(name, x) => Expr.Cons(name, x.map(unnest_match_expr))
+      Expr.App(recurse(f), x.map(recurse))
+    case Expr.Cons(name, x) => Expr.Cons(name, x.map(recurse))
   }
 }
 
 def unnest_match(p: Program): Program = {
-  refresh(Program(p.decls.map(_ match {
-    case ValueDecl(x, b) => ValueDecl(x, unnest_match_expr(b))
-    case td: TypeDecl    => td
-  })))
+  val env = UnnestMatchEnv(p)
+  refresh(
+    Program(
+      p.tds,
+      p.vds.map(vd => ValueDecl(vd.x, unnest_match_expr(vd.b, env)))
+    )
+  )
 }

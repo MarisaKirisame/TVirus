@@ -1,8 +1,9 @@
-package  zombie.tvirus.codegen
-import zombie.tvirus.parser.* 
+package zombie.tvirus.codegen
+import zombie.tvirus.parser.*
 import scala.jdk.CollectionConverters.*
 import java.util.IdentityHashMap
 import collection.mutable
+import cats.syntax.binested
 
 def resolve(t: Type): Type = {
   t match
@@ -22,7 +23,7 @@ def occur_check(l: Type, r: Type): Boolean = {
   } else {
     r match {
       case Type.Var(_, _)  => true
-      case Type.App(f, x)  => recur(f) && recur(x)
+      case Type.App(f, x)  => recur(f) && x.forall(recur)
       case Type.Func(l, r) => l.forall(recur) && recur(r)
       case Type.TyCons(_)  => true
     }
@@ -59,6 +60,11 @@ def unify(l_raw: Type, r_raw: Type): Unit = {
       case (Type.TyCons(l), Type.TyCons(r)) => {
         assert(l == r)
       }
+      case (Type.App(lf, lx), Type.App(rf, rx)) => {
+        unify(lf, rf)
+        assert(lx.length == rx.length)
+        lx.zip(rx).map((l, r) => unify(l, r))
+      }
       case _ => {
         print(pp_type(l))
         print(pp_type(r))
@@ -67,9 +73,12 @@ def unify(l_raw: Type, r_raw: Type): Unit = {
   }
 }
 
-class TyckEnv {
+class TyckEnv(p: Program) {
   val var_map = mutable.Map[String, Type]()
   val expr_map = IdentityHashMap[Expr, Type]().asScala
+  val unvisited = mutable.Map[String, ValueDecl](p.vds.map(vd => (vd.x, vd))*)
+  p.tds.map(tyck_td(_, this))
+  p.vds.map(tyck_vd(_, this))
 }
 
 def tyck_pat(x: Pat, env: TyckEnv): Type = {
@@ -81,47 +90,73 @@ def tyck_pat(x: Pat, env: TyckEnv): Type = {
         Expr.App(Expr.Var(name), xs.map(x => Expr.DeclValue(recur(x)))),
         env
       )
-    case Pat.Var(name) => tyck_expr(Expr.Var(name), env)
+    case Pat.Var(name) => new_binding(name, env)
   }
 }
 
+def remap_type(x: Type, map: Map[String, Type]): Type = {
+    val recurse = x => remap_type(x, map)
+    resolve(x) match {
+        case v@Type.Var(_, _) => {
+            map.get(v.name) match {
+                case None => v
+                case Some(t) => t
+            }
+        }
+        case Type.Func(xs, y) => Type.Func(xs.map(recurse), recurse(y))
+        case Type.App(f, xs) => Type.App(recurse(f), xs.map(recurse))
+        case Type.TyCons(name) => Type.TyCons(name)
+    }
+}
+
+def instantiate(x: Type): Type = {
+  resolve(x) match {
+    case Type.TypeScheme(xs, y) => remap_type(y, xs.map(x => (x, fresh_tv())).toMap)
+    case x                      => x
+  }
+}
+
+def new_binding(name: String, env: TyckEnv) = {
+  val tv = fresh_tv()
+        env.var_map.put(name, tv)
+        tv
+}
 def tyck_expr(x: Expr, env: TyckEnv): Type = {
-  val recur = y => tyck_expr(y, env)
+  val recurse = y => tyck_expr(y, env)
   val t = x match {
     case Expr.Var(v) => {
       env.var_map.get(v) match {
-        case Some(t) => t
+        case Some(t) => instantiate(t)
         case None => {
-          val tv = fresh_tv()
-          env.var_map.put(v, tv)
-          tv
+          print(v)
+          assert(false)
         }
       }
     }
     case Expr.Abs(bindings, body) => {
-      Type.Func(bindings.map(bind => recur(Expr.Var(bind))), recur(body))
+      Type.Func(bindings.map(new_binding(_, env)), recurse(body))
     }
     case Expr.Match(x, cases) => {
-      val x_ty = recur(x)
+      val x_ty = recurse(x)
       val out_ty = fresh_tv()
       cases.map((lhs, rhs) => {
         unify(x_ty, tyck_pat(lhs, env))
-        unify(out_ty, recur(rhs))
+        unify(out_ty, recurse(rhs))
       })
       out_ty
     }
     case Expr.App(f, xs) => {
       val out_ty = fresh_tv()
-      unify(recur(f), Type.Func(xs.map(recur), out_ty))
+      unify(recurse(f), Type.Func(xs.map(recurse), out_ty))
       out_ty
     }
     case Expr.Cons(f, xs) => {
-      recur(Expr.App(Expr.Var(f), xs))
+      recurse(Expr.App(Expr.Var(f), xs))
     }
     case Expr.DeclValue(t) => t
     case Expr.Let(bindings, body) => {
-      bindings.map((lhs, rhs) => unify(recur(Expr.Var(lhs)), recur(rhs)))
-      recur(body)
+      bindings.map((lhs, rhs) => unify(new_binding(lhs, env), recurse(rhs)))
+      recurse(body)
     }
   }
   env.expr_map.put(x, t)
@@ -132,39 +167,46 @@ def fresh_tv(): Type = {
   Type.Var(freshName(), None)
 }
 
-def TyApps(f: Type, xs: Seq[Type]): Type = {
-  if (xs.isEmpty) {
-    f
-  } else {
-    TyApps(Type.App(f, xs.head), xs.tail)
+def free_tv(t: Type): Set[String] = {
+  resolve(t) match {
+    case Type.Var(x, _)  => Set(x)
+    case Type.App(f, xs) => free_tv(f) ++ xs.map(free_tv).foldLeft(Set[String]())((l, r) => l ++ r)
+    case Type.TyCons(_)  => Set()
+    case Type.Func(xs, y) => xs.map(free_tv).foldLeft(Set[String]())((l, r) => l ++ r) ++ free_tv(y)
   }
+}
+
+def generalize(t: Type) = {
+  Type.TypeScheme(free_tv(t).toSeq, t)
 }
 
 def tyck_td(td: TypeDecl, env: TyckEnv): Unit = {
   td.cons.map((cb: CBind) =>
     env.var_map.put(
       cb.name,
-      Type.Func(
-        cb.args,
-        TyApps(Type.TyCons(td.name), td.xs.map(t => Type.Var(t, None)))
+      generalize(
+        Type.Func(
+          cb.args,
+          if (td.xs.isEmpty) { Type.TyCons(td.name) }
+          else {
+            Type.App(Type.TyCons(td.name), td.xs.map(t => Type.Var(t, None)))
+          }
+        )
       )
     )
   )
 }
 
 def tyck_vd(vd: ValueDecl, env: TyckEnv): Unit = {
-  env.var_map.put(vd.x, tyck_expr(vd.b, env))
+  if (env.unvisited.contains(vd.x)) {
+    env.unvisited.remove(vd.x)
+    val tv = fresh_tv()
+    env.var_map.put(vd.x, tv)
+    unify(tyck_expr(vd.b, env), tv)
+    env.var_map.put(vd.x, generalize(tv))
+  }
 }
 
 def tyck_program(p: Program) = {
-  val env = TyckEnv()
-  p.decls.map(_ match {
-    case vd: ValueDecl => {}
-    case td: TypeDecl  => tyck_td(td, env)
-  })
-  p.decls.map(_ match {
-    case vd: ValueDecl => tyck_vd(vd, env)
-    case td: TypeDecl  => {}
-  })
-  env
+  TyckEnv(p)
 }
