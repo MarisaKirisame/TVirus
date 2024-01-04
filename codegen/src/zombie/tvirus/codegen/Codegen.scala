@@ -10,12 +10,14 @@ class CodeGenEnv(p: Program) {
   val tyck: TyckEnv = tyck_program(p)
   val constructor_name_map: mutable.Map[String, Int] =
     mutable.Map[String, Int]()
-
   p.tds.map(td =>
     td.cons.zipWithIndex.map((cb, idx) =>
       constructor_name_map.put(cb.name, idx)
     )
   )
+  val global_funcs: Set[String] = {
+    p.vds.map(vd => vd.x).toSet
+  }
 }
 
 def codegen_args(bindings: Seq[String], env: CodeGenEnv): String = {
@@ -42,10 +44,12 @@ def codegen_vd_fwd(x: ValueDecl, env: CodeGenEnv): String = {
     x.b match {
       case Expr.Abs(bindings, body) =>
         codegen_template_header_from_name(x.x, env) +
-          type_wrapper(codegen_type(
-            env.tyck.expr_map.get(body).get,
-            env
-          )) + " " + x.x + codegen_args(bindings, env) + ";"
+          type_wrapper(
+            codegen_type(
+              env.tyck.expr_map.get(body).get,
+              env
+            )
+          ) + " " + x.x + codegen_args(bindings, env) + ";"
     }
   }
 }
@@ -95,17 +99,26 @@ def codegen_expr(x: Expr, env: CodeGenEnv): String = {
       }()"""
     }
     case Expr.App(Expr.Var(f), xs) => {
-      f + bracket(xs.map(recur).mkString(", "))
+      if (env.global_funcs.contains(f)) {
+        f + bracket(xs.map(recur).mkString(", "))
+      } else {
+        codegen_bind(f, f_ => f_ + bracket(xs.map(recur).mkString(", ")))  
+      }
     }
     case Expr.App(f, xs) => {
       codegen_bind(recur(f), f_ => f_ + bracket(xs.map(recur).mkString(", ")))
     }
     case Expr.Abs(bindings, body) => {
-      s"""[=](${bindings.map(b => s"const ${type_wrapper(codegen_type(env.tyck.var_map(b), env))}& ${b}").mkString(", ")}){ return ${recur(body)}; }"""
+      s"""std::make_shared<${codegen_type(env.tyck.expr_map(x), env)}>([=](${bindings
+          .map(b =>
+            s"const ${type_wrapper(codegen_type(env.tyck.var_map(b), env))}& ${b}"
+          )
+          .mkString(", ")}){ return ${recur(body)}; })"""
     }
     case Expr.Cons(name, xs) => {
       (resolve(env.tyck.expr_map(x)) match {
-        case Type.App(f, xs) => name + s"""<${xs.map(codegen_type(_, env)).mkString(", ")}>"""
+        case Type.App(f, xs) =>
+          name + s"""<${xs.map(codegen_type(_, env)).mkString(", ")}>"""
         case Type.TyCons(_) => name
       }) + bracket(xs.map(recur).mkString(", "))
     }
@@ -122,13 +135,16 @@ def type_wrapper(x: String): String = {
   s"std::shared_ptr<${x}>"
 }
 
+def cref_wrapper(x: String): String = {
+  s"const ${x}&"
+}
 def codegen_type(x: Type, env: CodeGenEnv): String = {
   val recur = y => codegen_type(y, env)
   resolve(x) match {
     case Type.Var(name, _) => name
     case Type.TyCons(name) => name
     case Type.Func(args, ret) =>
-      s"std::function<${type_wrapper(recur(ret))}(${args.map(x => type_wrapper(recur(x))).mkString(", ")})>"
+      s"std::function<${type_wrapper(recur(ret))}(${args.map(x => cref_wrapper(type_wrapper(recur(x)))).mkString(", ")})>"
     case Type.App(Type.TyCons(name), xs) =>
       s"${name}<${xs.map(recur).mkString(", ")}>"
   }
@@ -173,7 +189,10 @@ def codegen_td(x: TypeDecl, env: CodeGenEnv): String = {
 def codegen_constructors(x: TypeDecl, env: CodeGenEnv): String = {
   x.cons.zipWithIndex
     .map((cb, idx) => {
-      val ret_type = type_wrapper(x.name + (if (x.xs.isEmpty) {""} else {s"<${x.xs.mkString(", ")}>"}))
+      val ret_type = type_wrapper(x.name + (if (x.xs.isEmpty) { "" }
+                                            else {
+                                              s"<${x.xs.mkString(", ")}>"
+                                            }))
       val name = cb.name
       val type_with_name = cb.args.map(ty => (ty, freshName()))
       val args = bracket(
@@ -195,15 +214,17 @@ def codegen_constructors(x: TypeDecl, env: CodeGenEnv): String = {
 
 def codegen_vd(x: ValueDecl, env: CodeGenEnv): String = {
   if (x.x == "main") {
-    ""
+    s"int main() { ${codegen_expr(x.b, env)}; }"
   } else {
     (x.b match {
       case Expr.Abs(bindings, body) => {
         codegen_template_header_from_name(x.x, env) +
-          type_wrapper(codegen_type(
-            env.tyck.expr_map.get(body).get,
-            env
-          )) + " " + x.x + codegen_args(bindings, env) +
+          type_wrapper(
+            codegen_type(
+              env.tyck.expr_map.get(body).get,
+              env
+            )
+          ) + " " + x.x + codegen_args(bindings, env) +
           s"""{ 
           return ${codegen_expr(body, env)};
         }"""
@@ -223,10 +244,7 @@ def codegen(x: Program): String = {
     x.tds.map(codegen_td_fwd(_, env)).mkString("\n") +
     x.tds.map(codegen_td(_, env)).mkString("\n") +
     x.vds.map(codegen_vd_fwd(_, env)).mkString("\n") +
-    x.vds.map(codegen_vd(_, env)).mkString("\n") ++
-    """
-  int main() { }
-  """
+    x.vds.map(codegen_vd(_, env)).mkString("\n")
 }
 
 def compile(x: String) = {

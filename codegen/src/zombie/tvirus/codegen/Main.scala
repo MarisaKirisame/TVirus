@@ -355,13 +355,13 @@ def let_simplification(p: Program): Program = {
   //val program = "example/list.tv"
   var x = refresh(cons(drive(CharStreams.fromFileName(program))))
   println(pp(x))
-  x = unnest_match(x)
-  //x = let_simplification(merge_abs_app(cps(unnest_match(x))))
+  //x = unnest_match(x)
+  x = let_simplification(merge_abs_app(cps(unnest_match(x))))
   println(pp(x))
   val tyck = TyckEnv(x)
   for ((k, v) <- tyck.var_map) {
     println((k, pp_type(v)))
   }
-  //print(codegen(x))
+  print(codegen(x))
   compile(codegen(x))
 }
