@@ -14,6 +14,7 @@ def pp_type(x: Type): String = {
       "(" + l.map(pp_type).mkString(", ") + ") -> " + pp_type(r)
     case Type.TyCons(x) => x
     case Type.TypeScheme(xs, y) => s"forall ${xs.mkString(" ")}, ${pp_type(y)}"
+    case Type.Prim(PrimType.INT) => "int"
   }
 }
 
@@ -50,6 +51,7 @@ def pp_expr(x: Expr): String = {
     case Expr.Cons(con, xs) => con + "(" + xs.map(pp_expr).mkString(", ") + ")"
     case Expr.Let(binding, body) =>
       "let " + binding.map(pp_binding).mkString(", ") + " in " + pp_expr(body)
+    case Expr.LitInt(x) => x.toString()
   }
 }
 

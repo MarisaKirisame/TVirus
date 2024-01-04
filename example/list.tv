@@ -10,4 +10,4 @@ let reverseAppend = \l1, l2. match l1 with
 
 let reverse = \l. reverseAppend(l, Nil())
 
-let main = map((\x. x), Nil())
+let main = map((\x. x), Cons(1, Nil()))

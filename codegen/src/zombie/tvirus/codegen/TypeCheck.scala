@@ -26,6 +26,7 @@ def occur_check(l: Type, r: Type): Boolean = {
       case Type.App(f, x)  => recur(f) && x.forall(recur)
       case Type.Func(l, r) => l.forall(recur) && recur(r)
       case Type.TyCons(_)  => true
+      case Type.Prim(_) => true
     }
   }
 }
@@ -158,6 +159,7 @@ def tyck_expr(x: Expr, env: TyckEnv): Type = {
       bindings.map((lhs, rhs) => unify(new_binding(lhs, env), recurse(rhs)))
       recurse(body)
     }
+    case Expr.LitInt(_) => Type.Prim(PrimType.INT)
   }
   env.expr_map.put(x, t)
   t
@@ -173,6 +175,7 @@ def free_tv(t: Type): Set[String] = {
     case Type.App(f, xs) => free_tv(f) ++ xs.map(free_tv).foldLeft(Set[String]())((l, r) => l ++ r)
     case Type.TyCons(_)  => Set()
     case Type.Func(xs, y) => xs.map(free_tv).foldLeft(Set[String]())((l, r) => l ++ r) ++ free_tv(y)
+    case Type.Prim(_) => Set()
   }
 }
 

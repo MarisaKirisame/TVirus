@@ -138,6 +138,7 @@ def unnest_match_expr(x: Expr, env: UnnestMatchEnv): Expr = {
     case Expr.App(f, x) =>
       Expr.App(recurse(f), x.map(recurse))
     case Expr.Cons(name, x) => Expr.Cons(name, x.map(recurse))
+    case Expr.LitInt(x) => Expr.LitInt(x)
   }
 }
 

@@ -102,14 +102,17 @@ def codegen_expr(x: Expr, env: CodeGenEnv): String = {
       if (env.global_funcs.contains(f)) {
         f + bracket(xs.map(recur).mkString(", "))
       } else {
-        codegen_bind(f, f_ => f_ + bracket(xs.map(recur).mkString(", ")))  
+        codegen_bind(f, f_ => f_ + bracket(xs.map(recur).mkString(", ")))
       }
     }
     case Expr.App(f, xs) => {
       codegen_bind(recur(f), f_ => f_ + bracket(xs.map(recur).mkString(", ")))
     }
     case Expr.Abs(bindings, body) => {
-      s"""std::make_shared<${codegen_type(env.tyck.expr_map(x), env)}>([=](${bindings
+      s"""std::make_shared<${codegen_type(
+          env.tyck.expr_map(x),
+          env
+        )}>([=](${bindings
           .map(b =>
             s"const ${type_wrapper(codegen_type(env.tyck.var_map(b), env))}& ${b}"
           )
@@ -127,6 +130,9 @@ def codegen_expr(x: Expr, env: CodeGenEnv): String = {
         ${bs.map((n, v) => s"auto ${n} = ${recur(v)};").mkString("\n")} 
         return ${recur(body)};
       }()"""
+    }
+    case Expr.LitInt(x) => {
+      s"std::make_shared<int64_t>(${x})"
     }
   }
 }
@@ -147,6 +153,7 @@ def codegen_type(x: Type, env: CodeGenEnv): String = {
       s"std::function<${type_wrapper(recur(ret))}(${args.map(x => cref_wrapper(type_wrapper(recur(x)))).mkString(", ")})>"
     case Type.App(Type.TyCons(name), xs) =>
       s"${name}<${xs.map(recur).mkString(", ")}>"
+    case Type.Prim(PrimType.INT) => "int64_t"
   }
 }
 
@@ -189,10 +196,11 @@ def codegen_td(x: TypeDecl, env: CodeGenEnv): String = {
 def codegen_constructors(x: TypeDecl, env: CodeGenEnv): String = {
   x.cons.zipWithIndex
     .map((cb, idx) => {
-      val ret_type = type_wrapper(x.name + (if (x.xs.isEmpty) { "" }
+      val ret_type_unwrapped = x.name + (if (x.xs.isEmpty) { "" }
                                             else {
                                               s"<${x.xs.mkString(", ")}>"
-                                            }))
+                                            })
+      val ret_type = type_wrapper(ret_type_unwrapped)
       val name = cb.name
       val type_with_name = cb.args.map(ty => (ty, freshName()))
       val args = bracket(
@@ -201,7 +209,7 @@ def codegen_constructors(x: TypeDecl, env: CodeGenEnv): String = {
           .mkString(", ")
       )
       s"""${codegen_template_header(x.xs)} ${ret_type} ${name}${args} {
-       return std::make_shared<${x.name}>(${x.name}{.var=${variant_td(
+       return std::make_shared<${ret_type_unwrapped}>(${ret_type_unwrapped}{.var=${variant_td(
           x,
           env
         )}{std::in_place_index<${idx}>, ${type_with_name
