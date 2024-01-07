@@ -281,8 +281,8 @@ def let_simplification(p: Program): Program = {
 }
 
 @main def main() = {
-  val program = "example/mod2.tv"
-  //val program = "example/list.tv"
+  //val program = "example/mod2.tv"
+  val program = "example/list.tv"
   var x = refresh(cons(drive(CharStreams.fromFileName(program))))
   println(pp(x))
   //x = unnest_match(x)

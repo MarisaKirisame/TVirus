@@ -212,7 +212,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv): String = {
       """)
     }
     case Expr.LitInt(x) => {
-      s"std::make_shared<int64_t>(${x})"
+      BE.val_wrapper("int64_t", x.toString)
     }
   }
 }
