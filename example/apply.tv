@@ -1,1 +1,1 @@
-let main = (\x . \y . + x y) 22 20
+let main = (\x, y. x + y)(22, 20)
