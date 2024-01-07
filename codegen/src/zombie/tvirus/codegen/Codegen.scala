@@ -27,6 +27,10 @@ class ZombieBackEnd extends BackEnd {
     struct GetSize<int64_t> {
       size_t operator()(const int64_t& x) { return sizeof(x); }
     };
+    template<typename X, typename... Y>
+    struct GetSize<std::function<X(Y...)>> {
+      size_t operator()(const auto& x) { }
+    };
     """
   }
   def handle_constructor(x: TypeDecl): String = {
@@ -191,7 +195,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv): String = {
             .map(b =>
               s"const ${BE.type_wrapper(codegen_type(env.tyck.var_map(b), env))}& ${b}"
             )
-            .mkString(", ")}){ return ${recur(body)}; })"""
+            .mkString(", ")}){ return ${recur(body)}; }"""
       )
     }
     case Expr.Cons(name, xs) => {
