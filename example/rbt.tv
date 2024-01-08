@@ -1,0 +1,27 @@
+data Color = Red() | Black()
+data Rbt a = Node(Color, a, Rbt a, Rbt a) | Leaf()
+data Bool = True() | False()
+
+let member = \x, t. match t with
+| Leaf() -> True()
+| Node(_, y, l, r) -> if (x < y) { member(x, l) } else { if (x > y) { member(x, r) } else { True() } }
+
+let balance = \t. match t with
+| Node(Black(), z, Node(Red(), y, Node(Red(), x, a, b), c), d) -> Node(Red(), y, Node(Black(), x, a, b), Node(Black(), z, c, d))
+| Node(Black(), z, Node(Red(), x, a, Node(Red(), y, b, c)), d) -> Node(Red(), y, Node(Black(), x, a, b), Node(Black(), z, c, d))
+| Node(Black(), x, a, Node(Red(), z, Node(Red(), y, b, c), d)) -> Node(Red(), y, Node(Black(), x, a, b), Node(Black(), z, c, d))
+| Node(Black(), x, a, Node(Red(), y, b, Node(Red(), z, c, d))) -> Node(Red(), y, Node(Black(), x, a, b), Node(Black(), z, c, d))
+| Node(a, b, c, d) -> Node(a, b, c, d)
+
+let insertAux = \x, t. match t with
+| Leaf() -> Node(Red(), x, Leaf(), Leaf())
+| Node(c, y, a, b) ->
+  if (x < y) { balance(Node(c, y, insertAux(x, a), b)) }
+  else {
+    if (x > y) { balance(Node(c, y, a, insertAux(x, b))) }
+    else { Node(c, y, a, b) }}
+
+let insert = \x, t. match insertAux(x, t) with
+| Node(_, y, a, b) -> Node(Black(), y, a, b)
+| Leaf() -> Leaf()
+
