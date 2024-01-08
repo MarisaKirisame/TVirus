@@ -1,0 +1,11 @@
+data List a = Nil() | Cons(a, List a)
+
+let pascalNext = \l. match l with
+    | Nil() -> Nil()
+    | Cons(x, Nil()) -> Nil()
+    | Cons(x, Cons(y, xs)) -> Cons(x + y, pascalNext(xs))
+
+let pascal = \l. match l with
+    | Nil() -> 0
+    | Cons(x, Nil()) -> x
+    | xs -> pascal(pascalNext(xs))
