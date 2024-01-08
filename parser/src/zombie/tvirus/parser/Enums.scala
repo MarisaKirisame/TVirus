@@ -40,7 +40,7 @@ enum Expr:
   case Match(x: Expr, bs: Seq[(Pat, Expr)])
   case Cons(name: String, args: Seq[Expr])
   case DeclValue(t: Type)
-  case If(x: Expr, t: Expr, e: Expr)
+  case If(i: Expr, t: Expr, e: Expr)
 
 case class ValueDecl(x: String, b: Expr)
 

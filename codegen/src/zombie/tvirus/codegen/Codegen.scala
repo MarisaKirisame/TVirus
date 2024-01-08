@@ -77,8 +77,8 @@ class NoZombieBackEnd extends BackEnd {
   def codegen_binds(x: Seq[String], y: Seq[String] => String): String = {
     val binds = x.map(x => (x, freshName()))
     stmts_to_expr(s"""
-    ${binds.map((x, n) => s"auto ${n} = ${x};").mkString("\n")}
-    return ${y(binds.map((x, n) => s"*${n}"))}
+    ${binds.map((x, n) => s"auto ${n} = *${x};").mkString("\n")}
+    return ${y(binds.map((x, n) => s"${n}"))};
     """)
   }
   def val_wrapper(t: String, v: String): String = {
