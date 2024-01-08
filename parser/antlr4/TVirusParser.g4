@@ -52,7 +52,9 @@ expr:
 	| expr SYM_LPAR expr (SYM_COMMA expr)* SYM_RPAR							# exprAppFull
 	| SYM_LAM tBind (SYM_COMMA tBind)* SYM_DOT expr							# exprAbs
 	| KW_LET sBind SYM_EQ expr (SYM_COMMA sBind SYM_EQ expr)* KW_IN expr	# exprLet
-	| KW_MATCH expr KW_WITH (SYM_PIPE pat SYM_ARROW expr)+					# exprMatch;
+	| KW_MATCH expr KW_WITH (SYM_PIPE pat SYM_ARROW expr)+					# exprMatch
+	| KW_IF expr SYM_LCB expr SYM_RCB KW_ELSE SYM_LCB expr SYM_RCB          # exprIf;
+	
 
 valueDecl: KW_LET sBind SYM_EQ expr;
 

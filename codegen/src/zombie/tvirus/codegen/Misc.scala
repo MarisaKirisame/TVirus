@@ -25,24 +25,25 @@ def freshName() = {
 }
 
 def consExpr(e: Expr, consDecls: Set[String]): Expr = {
-  val recur = x => consExpr(x, consDecls)
+  val recurse = x => consExpr(x, consDecls)
   e match
     case Expr.Prim(left, op, right) =>
-      Expr.Prim(recur(left), op, recur(right))
+      Expr.Prim(recurse(left), op, recurse(right))
     case Expr.App(f, xs) =>
       f match
         case Expr.Var(name) if consDecls.contains(name) =>
-          Expr.Cons(name, xs.map(recur))
-        case _ => Expr.App(recur(f), xs.map(recur))
-    case Expr.Abs(xs, b) => Expr.Abs(xs, recur(b))
-    case Expr.Let(xs, b) => Expr.Let(xs.map((l, r) => (l, recur(r))), recur(b))
+          Expr.Cons(name, xs.map(recurse))
+        case _ => Expr.App(recurse(f), xs.map(recurse))
+    case Expr.Abs(xs, b) => Expr.Abs(xs, recurse(b))
+    case Expr.Let(xs, b) => Expr.Let(xs.map((l, r) => (l, recurse(r))), recurse(b))
     case Expr.Match(x, bs) =>
       Expr.Match(
-        recur(x),
-        bs.map(b => (b(0), recur(b(1))))
+        recurse(x),
+        bs.map(b => (b(0), recurse(b(1))))
       )
     case Expr.Var(n) => Expr.Var(n)
     case Expr.LitInt(x) => Expr.LitInt(x)
+    case Expr.If(i, t, e) => Expr.If(recurse(i), recurse(t), recurse(e))
 }
 
 def consType(x: Type, decls: Set[String]): Type = {
@@ -115,6 +116,12 @@ def refresh_expr(x: Expr, remap: Map[String, String]): Expr = {
     case Expr.LitInt(x) => {
       Expr.LitInt(x)
     }
+    case Expr.Prim(l, op, r) => {
+      Expr.Prim(recurse(l), op, recurse(r))
+    }
+    case Expr.If(i, t, e) => {
+      Expr.If(recurse(i), recurse(t), recurse(e))
+    }
   }
 }
 
@@ -123,27 +130,33 @@ def refresh(p: Program): Program = {
 }
 
 def merge_abs_app_expr(x: Expr): Expr = {
-  val recur = x => merge_abs_app_expr(x)
+  val recurse = x => merge_abs_app_expr(x)
   x match {
     case Expr.Var(_)              => x
-    case Expr.Abs(bindings, body) => Expr.Abs(bindings, recur(body))
+    case Expr.Abs(bindings, body) => Expr.Abs(bindings, recurse(body))
     case Expr.Match(x, cases) =>
-      Expr.Match(x, cases.map((lhs, rhs) => (lhs, recur(rhs))))
+      Expr.Match(x, cases.map((lhs, rhs) => (lhs, recurse(rhs))))
     case Expr.App(Expr.Abs(bindings, body), xs) => {
       assert(bindings.length == xs.length)
-      Expr.Let(bindings.zip(xs).map((b, x) => (b, recur(x))), recur(body))
+      Expr.Let(bindings.zip(xs).map((b, x) => (b, recurse(x))), recurse(body))
     }
     case Expr.App(f, xs) => {
-      Expr.App(recur(f), xs.map(recur))
+      Expr.App(recurse(f), xs.map(recurse))
     }
     case Expr.Cons(name, xs) => {
-      Expr.Cons(name, xs.map(recur))
+      Expr.Cons(name, xs.map(recurse))
     }
     case Expr.Let(bindings, body) => {
-      Expr.Let(bindings.map((n, v) => (n, recur(v))), recur(body))
+      Expr.Let(bindings.map((n, v) => (n, recurse(v))), recurse(body))
     }
     case Expr.LitInt(x) => {
       Expr.LitInt(x)
+    }
+    case Expr.If(i, t, e) => {
+      Expr.If(recurse(i), recurse(t), recurse(e))
+    }
+    case Expr.Prim(l, op, r) => {
+      Expr.Prim(recurse(l), op, recurse(r))
     }
   }
 }
@@ -184,6 +197,8 @@ def expr_is_fresh(x: Expr, seen: mutable.Set[String]): Boolean = {
     case Expr.App(f, xs)     => recurse(f) && xs.forall(recurse)
     case Expr.Cons(name, xs) => xs.forall(recurse)
     case Expr.LitInt(_) => true
+    case Expr.If(i, t, e) => recurse(i) && recurse(t) && recurse(e)
+    case Expr.Prim(l, op, r) => recurse(l) && recurse(r)
   }
 }
 
@@ -224,6 +239,15 @@ def let_analysis(x: Expr, var_map: mutable.Map[String, (Expr, Int)]): Unit = {
       xs.map(recurse)
     }
     case Expr.LitInt(_) => { }
+    case Expr.If(i, t, e) => {
+      recurse(i)
+      recurse(t)
+      recurse(e)
+    }
+    case Expr.Prim(l, op, r) => {
+      recurse(l)
+      recurse(r)
+    }
   }
 }
 
@@ -270,6 +294,8 @@ def unlet(x: Expr, var_map: mutable.Map[String, (Expr, Int)]): Expr = {
     }
     case Expr.Cons(name, args) => Expr.Cons(name, args.map(recurse))
     case Expr.LitInt(_) => x
+    case Expr.If(i, t, e) => Expr.If(recurse(i), recurse(t), recurse(e))
+    case Expr.Prim(l, op, r) => Expr.Prim(recurse(l), op, recurse(r))
   }
 }
 
@@ -282,7 +308,8 @@ def let_simplification(p: Program): Program = {
 
 @main def main() = {
   //val program = "example/mod2.tv"
-  val program = "example/list.tv"
+  //val program = "example/list.tv"
+  val program = "example/taba.tv"
   var x = refresh(cons(drive(CharStreams.fromFileName(program))))
   println(pp(x))
   //x = unnest_match(x)

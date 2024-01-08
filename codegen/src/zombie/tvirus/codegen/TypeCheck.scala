@@ -66,9 +66,12 @@ def unify(l_raw: Type, r_raw: Type): Unit = {
         assert(lx.length == rx.length)
         lx.zip(rx).map((l, r) => unify(l, r))
       }
+      case (Type.Prim(l), Type.Prim(r)) => {
+        assert(l == r)
+      }
       case _ => {
-        print(pp_type(l))
-        print(pp_type(r))
+        println(pp_type(l))
+        println(pp_type(r))
         assert(false)
       }
   }
@@ -107,6 +110,7 @@ def remap_type(x: Type, map: Map[String, Type]): Type = {
         case Type.Func(xs, y) => Type.Func(xs.map(recurse), recurse(y))
         case Type.App(f, xs) => Type.App(recurse(f), xs.map(recurse))
         case Type.TyCons(name) => Type.TyCons(name)
+        case Type.Prim(x) => Type.Prim(x)
     }
 }
 
@@ -122,6 +126,21 @@ def new_binding(name: String, env: TyckEnv) = {
         env.var_map.put(name, tv)
         tv
 }
+
+def tyck_primop(l: Type, op: PrimOp, r: Type): Type = {
+  op match {
+    case PrimOp.EQ => {
+      unify(l, r)
+      Type.Prim(PrimType.BOOL)
+    }
+    case PrimOp.MINUS | PrimOp.ADD => {
+      unify(l, Type.Prim(PrimType.INT))
+      unify(r, Type.Prim(PrimType.INT))
+      Type.Prim(PrimType.INT)
+    }
+  }
+}
+
 def tyck_expr(x: Expr, env: TyckEnv): Type = {
   val recurse = y => tyck_expr(y, env)
   val t = x match {
@@ -160,6 +179,16 @@ def tyck_expr(x: Expr, env: TyckEnv): Type = {
       recurse(body)
     }
     case Expr.LitInt(_) => Type.Prim(PrimType.INT)
+    case Expr.If(i, t, e) => {
+      unify(recurse(i), Type.Prim(PrimType.BOOL))
+      val out_ty = fresh_tv()
+      unify(recurse(t), out_ty)
+      unify(recurse(e), out_ty)
+      out_ty
+    }
+    case Expr.Prim(l, op, r) => {
+      tyck_primop(recurse(l), op, recurse(r))
+    }
   }
   env.expr_map.put(x, t)
   t

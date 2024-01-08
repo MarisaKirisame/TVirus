@@ -11,7 +11,10 @@ trait BackEnd {
   def val_wrapper(t: String, v: String): String
   def header: String
   def handle_constructor(x: TypeDecl): String
-  def codegen_bind(x: String, y: String => String): String
+  def codegen_binds(x: Seq[String], y: Seq[String] => String): String
+  def codegen_bind(x: String, y: String => String): String = {
+    codegen_binds(Seq(x), x_ => y(x_(0)))
+  }
 }
 
 class ZombieBackEnd extends BackEnd {
@@ -26,6 +29,10 @@ class ZombieBackEnd extends BackEnd {
     template<>
     struct GetSize<int64_t> {
       size_t operator()(const int64_t& x) { return sizeof(x); }
+    };
+    template<>
+    struct GetSize<bool> {
+      size_t operator()(const bool& x) { return sizeof(x); }
     };
     template<typename X, typename... Y>
     struct GetSize<std::function<X(Y...)>> {
@@ -46,9 +53,11 @@ class ZombieBackEnd extends BackEnd {
     };
     """
   }
-  def codegen_bind(x: String, y: String => String): String = {
-    val fn = freshName()
-    s"""bindZombie([=](const auto& ${fn}){ return ${y(fn)}; }, ${x})"""
+  def codegen_binds(x: Seq[String], y: Seq[String] => String): String = {
+    val fn = x.map(_ => freshName())
+    s"""bindZombie([=](${fn
+        .map(n => s"const auto& ${n}")
+        .mkString(", ")}){ return ${y(fn)}; }, ${x.mkString(", ")})"""
   }
   def val_wrapper(t: String, v: String): String = {
     s"""Zombie<${t}>(${v})"""
@@ -65,11 +74,11 @@ class NoZombieBackEnd extends BackEnd {
   def handle_constructor(x: TypeDecl): String = {
     ""
   }
-  def codegen_bind(x: String, y: String => String): String = {
-    val fn = freshName()
+  def codegen_binds(x: Seq[String], y: Seq[String] => String): String = {
+    val binds = x.map(x => (x, freshName()))
     stmts_to_expr(s"""
-    auto ${fn} = ${x}
-    return ${y(s"*${fn}")}
+    ${binds.map((x, n) => s"auto ${n} = ${x};").mkString("\n")}
+    return ${y(binds.map((x, n) => s"*${n}"))}
     """)
   }
   def val_wrapper(t: String, v: String): String = {
@@ -158,13 +167,21 @@ def codegen_case(name: String, c: (Pat, Expr), env: CodeGenEnv): String = {
   }
 }
 
+def codegen_primop(l: String, op: PrimOp, r: String) = {
+  op match {
+    case PrimOp.EQ    => s"${l} == ${r}"
+    case PrimOp.MINUS => s"${l} - ${r}"
+    case PrimOp.ADD   => s"${l} + ${r}"
+  }
+}
+
 def codegen_expr(x: Expr, env: CodeGenEnv): String = {
-  val recur = x => codegen_expr(x, env)
+  val recurse = x => codegen_expr(x, env)
   x match {
     case Expr.Var(name) => name
     case Expr.Match(x, cases) => {
       BE.codegen_bind(
-        recur(x),
+        recurse(x),
         x_ =>
           stmts_to_expr(
             cases.map(c => codegen_case(x_, c, env)).mkString("\n") +
@@ -174,15 +191,15 @@ def codegen_expr(x: Expr, env: CodeGenEnv): String = {
     }
     case Expr.App(Expr.Var(f), xs) => {
       if (env.global_funcs.contains(f)) {
-        f + bracket(xs.map(recur).mkString(", "))
+        f + bracket(xs.map(recurse).mkString(", "))
       } else {
-        BE.codegen_bind(f, f_ => f_ + bracket(xs.map(recur).mkString(", ")))
+        BE.codegen_bind(f, f_ => f_ + bracket(xs.map(recurse).mkString(", ")))
       }
     }
     case Expr.App(f, xs) => {
       BE.codegen_bind(
-        recur(f),
-        f_ => f_ + bracket(xs.map(recur).mkString(", "))
+        recurse(f),
+        f_ => f_ + bracket(xs.map(recurse).mkString(", "))
       )
     }
     case Expr.Abs(bindings, body) => {
@@ -195,7 +212,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv): String = {
             .map(b =>
               s"const ${BE.type_wrapper(codegen_type(env.tyck.var_map(b), env))}& ${b}"
             )
-            .mkString(", ")}){ return ${recur(body)}; }"""
+            .mkString(", ")}){ return ${recurse(body)}; }"""
       )
     }
     case Expr.Cons(name, xs) => {
@@ -203,16 +220,31 @@ def codegen_expr(x: Expr, env: CodeGenEnv): String = {
         case Type.App(f, xs) =>
           name + s"""<${xs.map(codegen_type(_, env)).mkString(", ")}>"""
         case Type.TyCons(_) => name
-      }) + bracket(xs.map(recur).mkString(", "))
+      }) + bracket(xs.map(recurse).mkString(", "))
     }
     case Expr.Let(bs, body) => {
       stmts_to_expr(s"""
-        ${bs.map((n, v) => s"auto ${n} = ${recur(v)};").mkString("\n")} 
-        return ${recur(body)};
+        ${bs.map((n, v) => s"auto ${n} = ${recurse(v)};").mkString("\n")} 
+        return ${recurse(body)};
       """)
     }
     case Expr.LitInt(x) => {
       BE.val_wrapper("int64_t", x.toString)
+    }
+    case Expr.If(i, t, e) =>
+      BE.codegen_bind(
+        recurse(i),
+        i_ => s"${i_} ? ${recurse(t)} : ${recurse(e)}"
+      )
+    case Expr.Prim(l, op, r) => {
+      BE.codegen_binds(
+        Seq(recurse(l), recurse(r)),
+        xs =>
+          BE.val_wrapper(
+            codegen_type(env.tyck.expr_map(x), env),
+            codegen_primop(xs(0), op, xs(1))
+          )
+      )
     }
   }
 }
@@ -220,18 +252,20 @@ def codegen_expr(x: Expr, env: CodeGenEnv): String = {
 def cref_wrapper(x: String): String = {
   s"const ${x}&"
 }
+
 def codegen_type(x: Type, env: CodeGenEnv): String = {
-  val recur = y => codegen_type(y, env)
+  val recurse = y => codegen_type(y, env)
   resolve(x) match {
     case Type.Var(name, _) => name
     case Type.TyCons(name) => name
     case Type.Func(args, ret) =>
-      s"std::function<${BE.type_wrapper(recur(ret))}(${args
-          .map(x => cref_wrapper(BE.type_wrapper(recur(x))))
+      s"std::function<${BE.type_wrapper(recurse(ret))}(${args
+          .map(x => cref_wrapper(BE.type_wrapper(recurse(x))))
           .mkString(", ")})>"
     case Type.App(Type.TyCons(name), xs) =>
-      s"${name}<${xs.map(recur).mkString(", ")}>"
+      s"${name}<${xs.map(recurse).mkString(", ")}>"
     case Type.Prim(PrimType.INT) => "int64_t"
+    case Type.Prim(PrimType.BOOL) => "bool"
   }
 }
 

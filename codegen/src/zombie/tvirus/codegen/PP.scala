@@ -15,6 +15,7 @@ def pp_type(x: Type): String = {
     case Type.TyCons(x) => x
     case Type.TypeScheme(xs, y) => s"forall ${xs.mkString(" ")}, ${pp_type(y)}"
     case Type.Prim(PrimType.INT) => "int"
+    case Type.Prim(PrimType.BOOL) => "bool"
   }
 }
 
@@ -37,6 +38,13 @@ def pp_binding(bind: (String, Expr)): String = {
   bind(0) + " = " + pp_expr(bind(1))
 }
 
+def pp_op(op: PrimOp): String = {
+  op match
+    case PrimOp.EQ => "=="
+    case PrimOp.ADD => "+"
+    case PrimOp.MINUS => "-"
+}
+
 def pp_expr(x: Expr): String = {
   x match {
     case Expr.Abs(xs, b) =>
@@ -52,6 +60,8 @@ def pp_expr(x: Expr): String = {
     case Expr.Let(binding, body) =>
       "let " + binding.map(pp_binding).mkString(", ") + " in " + pp_expr(body)
     case Expr.LitInt(x) => x.toString()
+    case Expr.Prim(l, op, r) => s"(${pp_expr(l)} ${pp_op(op)} ${pp_expr(r)})"
+    case Expr.If(i, t, e) => s"if ${pp_expr(i)} {${pp_expr(t)}} else {${pp_expr(e)}}"
   }
 }
 

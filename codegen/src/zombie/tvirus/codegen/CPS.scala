@@ -50,6 +50,9 @@ def cps_expr(x: Expr, k: Cont): Expr = {
         x_ => Expr.Match(x_, cases.map((l, r) => (l, cps_expr(r, k))))
       )
     }
+    case Expr.If(i, t, e) => {
+        cps_expr_ho(i, i_ => Expr.If(i_, cps_expr(t, k), cps_expr(e, k)))
+    }
     case Expr.App(f, x) => {
       cps_expr_ho(f, f_ => cps_exprs(x, x_ => Expr.App(f_, x_ :+ k.toFO)))
     }
@@ -72,6 +75,9 @@ def cps_expr(x: Expr, k: Cont): Expr = {
     }
     case Expr.LitInt(_) => {
         k.toHO(x)
+    }
+    case Expr.Prim(l, op, r) => {
+        cps_expr_ho(l, l_ => cps_expr_ho(r, r_ => k.toHO(Expr.Prim(l_, op, r_))))
     }
   }
 }

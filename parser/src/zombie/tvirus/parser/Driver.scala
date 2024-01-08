@@ -162,6 +162,11 @@ object TVirusParserExprVisitor extends TVirusParserBaseVisitor[Expr] {
         .zip(ctx.expr().asScala.drop(1).map(visit))
         .toSeq
     )
+
+  override def visitExprIf(ctx: ExprIfContext): Expr = {
+    val exprs = ctx.expr().asScala.map(TVirusParserExprVisitor.visit).toSeq
+    Expr.If(exprs(0), exprs(1), exprs(2))
+  }
 }
 
 object TVirusParserValueDeclVisitor extends TVirusParserBaseVisitor[ValueDecl] {
@@ -177,7 +182,9 @@ object TVirusParserProgramVisitor extends TVirusParserBaseVisitor[Program] {
     Program(
       ctx.children.asScala.toSeq.flatMap(t =>
         if (t.isInstanceOf[TypeDeclContext]) {
-          Seq(TVirusParserTypeDeclVisitor.visit(t.asInstanceOf[TypeDeclContext]))
+          Seq(
+            TVirusParserTypeDeclVisitor.visit(t.asInstanceOf[TypeDeclContext])
+          )
         } else if (t.isInstanceOf[ValueDeclContext]) {
           Seq()
         } else {
@@ -188,7 +195,9 @@ object TVirusParserProgramVisitor extends TVirusParserBaseVisitor[Program] {
         if (t.isInstanceOf[TypeDeclContext]) {
           Seq()
         } else if (t.isInstanceOf[ValueDeclContext]) {
-          Seq(TVirusParserValueDeclVisitor.visit(t.asInstanceOf[ValueDeclContext]))
+          Seq(
+            TVirusParserValueDeclVisitor.visit(t.asInstanceOf[ValueDeclContext])
+          )
         } else {
           assert(false)
         }

@@ -10,6 +10,9 @@ LIT_INT: '-'? DIGIT+;
 SYM_LPAR: '(';
 SYM_RPAR: ')';
 
+SYM_LCB: '{';
+SYM_RCB: '}';
+
 SYM_ADD: '+';
 SYM_MINUS: '-';
 SYM_MUL: '*';
@@ -38,6 +41,8 @@ KW_IN: 'in';
 KW_FORALL: 'forall';
 KW_MATCH: 'match';
 KW_WITH: 'with';
+KW_IF: 'if';
+KW_ELSE: 'else';
 
 KW_INT: 'Int';
 KW_BOOL: 'Bool';
