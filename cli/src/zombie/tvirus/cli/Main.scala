@@ -5,7 +5,7 @@ import org.antlr.v4.runtime.CharStreams
 import mainargs.{main, arg, ParserForMethods, Flag}
 
 import zombie.tvirus.parser.drive
-import zombie.tvirus.codegen.{compile, codegen, refresh, cons}
+import zombie.tvirus.codegen.*
 
 object Main {
   @main
@@ -17,7 +17,8 @@ object Main {
   ) = {
     val fileReader = new FileReader(new File(source_file))
 
-    val prog = refresh(cons(drive(CharStreams.fromReader(fileReader))))
+    var prog = refresh(cons(drive(CharStreams.fromReader(fileReader))))
+    prog = let_simplification(merge_abs_app(cps(unnest_match(prog))))
 
     try {
       val fileWriter = new FileWriter(target_file)
