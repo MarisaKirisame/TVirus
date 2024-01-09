@@ -1,4 +1,4 @@
-data Radix a = Node(Radix, Radix, Radix, Radix) | Leaf(a)
+data Radix = Node(Int, Radix, Radix, Radix, Radix) | Leaf()
 
 let length = \t . (match t with
 | Leaf() -> 1
