@@ -141,6 +141,10 @@ def unnest_match_expr(x: Expr, env: UnnestMatchEnv): Expr = {
     case Expr.LitInt(x) => Expr.LitInt(x)
     case Expr.If(i, t, e) => Expr.If(recurse(i), recurse(t), recurse(e))
     case Expr.Prim(l, op, r) => Expr.Prim(recurse(l), op, recurse(r))
+    case Expr.Let(xs, body) => Expr.Let(
+      xs.map((name, expr) => (name, recurse(expr))),
+      recurse(body)
+    )
   }
 }
 
