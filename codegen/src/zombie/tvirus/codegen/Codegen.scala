@@ -177,7 +177,7 @@ def codegen_primop(l: String, op: PrimOp, r: String) = {
     case PrimOp.MINUS => s"${l} - ${r}"
     case PrimOp.ADD   => s"${l} + ${r}"
     case PrimOp.MUL   => s"${l} * ${r}"
-    case PrimOp.DIV   => s"${l} // ${r}"
+    case PrimOp.DIV   => s"${l} / ${r}"
     case PrimOp.MOD   => s"${l} % ${r}"
     case PrimOp.LT    => s"${l} < ${r}"
     case PrimOp.LE    => s"${l} <= ${r}"
