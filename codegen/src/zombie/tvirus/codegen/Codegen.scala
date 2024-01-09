@@ -176,8 +176,13 @@ def codegen_primop(l: String, op: PrimOp, r: String) = {
     case PrimOp.EQ    => s"${l} == ${r}"
     case PrimOp.MINUS => s"${l} - ${r}"
     case PrimOp.ADD   => s"${l} + ${r}"
-    case PrimOp.LT   => s"${l} < ${r}"
-    case PrimOp.GT   => s"${l} > ${r}"
+    case PrimOp.MUL   => s"${l} * ${r}"
+    case PrimOp.DIV   => s"${l} / ${r}"
+    case PrimOp.MOD   => s"${l} % ${r}"
+    case PrimOp.LT    => s"${l} < ${r}"
+    case PrimOp.LE    => s"${l} <= ${r}"
+    case PrimOp.GT    => s"${l} > ${r}"
+    case PrimOp.GE    => s"${l} >= ${r}"
   }
 }
 
@@ -253,7 +258,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv): String = {
       )
     }
     case Expr.Fail() => {
-      s"fail<${codegen_type(env.tyck.expr_map(x), env)}>()"
+      s"fail<Zombie<${codegen_type(env.tyck.expr_map(x), env)}>>()"
     }
   }
 }

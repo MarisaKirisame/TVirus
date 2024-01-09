@@ -133,12 +133,12 @@ def tyck_primop(l: Type, op: PrimOp, r: Type): Type = {
       unify(l, r)
       Type.Prim(PrimType.BOOL)
     }
-    case PrimOp.LT | PrimOp.GT => {
+    case PrimOp.LT | PrimOp.GT | PrimOp.GE | PrimOp.LE => {
       unify(l, Type.Prim(PrimType.INT))
       unify(r, Type.Prim(PrimType.INT))
       Type.Prim(PrimType.BOOL)
     }
-    case PrimOp.MINUS | PrimOp.ADD => {
+    case PrimOp.MINUS | PrimOp.ADD | PrimOp.MUL | PrimOp.DIV | PrimOp.MOD => {
       unify(l, Type.Prim(PrimType.INT))
       unify(r, Type.Prim(PrimType.INT))
       Type.Prim(PrimType.INT)

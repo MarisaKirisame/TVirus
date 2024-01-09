@@ -9,6 +9,7 @@ primOp:
 	| SYM_MINUS
 	| SYM_MUL
 	| SYM_DIV
+	| SYM_MOD
 	| SYM_DE
 	| SYM_NE
 	| SYM_GT

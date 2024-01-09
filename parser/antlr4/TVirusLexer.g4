@@ -17,6 +17,7 @@ SYM_ADD: '+';
 SYM_MINUS: '-';
 SYM_MUL: '*';
 SYM_DIV: '/';
+SYM_MOD: '%';
 
 SYM_EQ: '=';
 SYM_DE: '==';

@@ -18,6 +18,7 @@ object TVirusParserPrimOpVisitor extends TVirusParserBaseVisitor[PrimOp] {
       case SYM_MINUS => MINUS
       case SYM_MUL   => MUL
       case SYM_DIV   => DIV
+      case SYM_MOD   => MOD
       case SYM_DE    => EQ
       case SYM_NE    => NE
       case SYM_GT    => GT
