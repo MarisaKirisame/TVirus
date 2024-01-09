@@ -57,7 +57,7 @@ def transform_program(
 ): Expr = {
   assert(rhs.forall((p, _) => p.length == lhs.length))
   if (rhs.length == 0) {
-    Expr.Var("fail")
+    Expr.Fail()
   } else if (lhs.length == 0) {
     rhs.head(1)
   } else {

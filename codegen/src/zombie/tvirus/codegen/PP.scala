@@ -43,6 +43,8 @@ def pp_op(op: PrimOp): String = {
     case PrimOp.EQ => "=="
     case PrimOp.ADD => "+"
     case PrimOp.MINUS => "-"
+    case PrimOp.LT => "<"
+    case PrimOp.GT => ">"
 }
 
 def pp_expr(x: Expr): String = {
@@ -62,6 +64,7 @@ def pp_expr(x: Expr): String = {
     case Expr.LitInt(x) => x.toString()
     case Expr.Prim(l, op, r) => s"(${pp_expr(l)} ${pp_op(op)} ${pp_expr(r)})"
     case Expr.If(i, t, e) => s"if ${pp_expr(i)} {${pp_expr(t)}} else {${pp_expr(e)}}"
+    case Expr.Fail() => "fail"
   }
 }
 

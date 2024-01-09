@@ -38,6 +38,10 @@ class ZombieBackEnd extends BackEnd {
     struct GetSize<std::function<X(Y...)>> {
       size_t operator()(const auto& x) { }
     };
+    template<typename X>
+    X fail() {
+      assert(false);
+    }
     """
   }
   def handle_constructor(x: TypeDecl): String = {
@@ -172,6 +176,8 @@ def codegen_primop(l: String, op: PrimOp, r: String) = {
     case PrimOp.EQ    => s"${l} == ${r}"
     case PrimOp.MINUS => s"${l} - ${r}"
     case PrimOp.ADD   => s"${l} + ${r}"
+    case PrimOp.LT   => s"${l} < ${r}"
+    case PrimOp.GT   => s"${l} > ${r}"
   }
 }
 
@@ -245,6 +251,9 @@ def codegen_expr(x: Expr, env: CodeGenEnv): String = {
             codegen_primop(xs(0), op, xs(1))
           )
       )
+    }
+    case Expr.Fail() => {
+      s"fail<${codegen_type(env.tyck.expr_map(x), env)}>()"
     }
   }
 }

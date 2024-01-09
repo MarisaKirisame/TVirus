@@ -41,6 +41,8 @@ enum Expr:
   case Cons(name: String, args: Seq[Expr])
   case DeclValue(t: Type)
   case If(i: Expr, t: Expr, e: Expr)
+  // must have () because each Fail() bind to different type
+  case Fail()
 
 case class ValueDecl(x: String, b: Expr)
 

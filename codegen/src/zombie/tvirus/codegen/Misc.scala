@@ -122,6 +122,7 @@ def refresh_expr(x: Expr, remap: Map[String, String]): Expr = {
     case Expr.If(i, t, e) => {
       Expr.If(recurse(i), recurse(t), recurse(e))
     }
+    case Expr.Fail() => Expr.Fail()
   }
 }
 
@@ -158,6 +159,7 @@ def merge_abs_app_expr(x: Expr): Expr = {
     case Expr.Prim(l, op, r) => {
       Expr.Prim(recurse(l), op, recurse(r))
     }
+    case Expr.Fail() => Expr.Fail()
   }
 }
 
@@ -199,6 +201,7 @@ def expr_is_fresh(x: Expr, seen: mutable.Set[String]): Boolean = {
     case Expr.LitInt(_) => true
     case Expr.If(i, t, e) => recurse(i) && recurse(t) && recurse(e)
     case Expr.Prim(l, op, r) => recurse(l) && recurse(r)
+    case Expr.Fail() => true
   }
 }
 
@@ -248,6 +251,7 @@ def let_analysis(x: Expr, var_map: mutable.Map[String, (Expr, Int)]): Unit = {
       recurse(l)
       recurse(r)
     }
+    case Expr.Fail() => { }
   }
 }
 
@@ -296,6 +300,7 @@ def unlet(x: Expr, var_map: mutable.Map[String, (Expr, Int)]): Expr = {
     case Expr.LitInt(_) => x
     case Expr.If(i, t, e) => Expr.If(recurse(i), recurse(t), recurse(e))
     case Expr.Prim(l, op, r) => Expr.Prim(recurse(l), op, recurse(r))
+    case Expr.Fail() => Expr.Fail()
   }
 }
 
@@ -310,7 +315,8 @@ def let_simplification(p: Program): Program = {
   //val program = "example/mod2.tv"
   //val program = "example/list.tv"
   //val program = "example/taba.tv"
-  val program = "example/pascal.tv"
+  //val program = "example/pascal.tv"
+  val program = "example/rbt.tv"
   var x = refresh(cons(drive(CharStreams.fromFileName(program))))
   println(pp(x))
   //x = unnest_match(x)

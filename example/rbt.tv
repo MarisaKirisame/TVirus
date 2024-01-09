@@ -1,6 +1,6 @@
 data Color = Red() | Black()
 data Rbt a = Node(Color, a, Rbt a, Rbt a) | Leaf()
-data Bool = True() | False()
+data Boolean = True() | False()
 
 let member = \x, t. match t with
 | Leaf() -> True()

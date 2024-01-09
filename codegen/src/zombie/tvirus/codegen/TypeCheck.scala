@@ -133,6 +133,11 @@ def tyck_primop(l: Type, op: PrimOp, r: Type): Type = {
       unify(l, r)
       Type.Prim(PrimType.BOOL)
     }
+    case PrimOp.LT | PrimOp.GT => {
+      unify(l, Type.Prim(PrimType.INT))
+      unify(r, Type.Prim(PrimType.INT))
+      Type.Prim(PrimType.BOOL)
+    }
     case PrimOp.MINUS | PrimOp.ADD => {
       unify(l, Type.Prim(PrimType.INT))
       unify(r, Type.Prim(PrimType.INT))
@@ -188,6 +193,9 @@ def tyck_expr(x: Expr, env: TyckEnv): Type = {
     }
     case Expr.Prim(l, op, r) => {
       tyck_primop(recurse(l), op, recurse(r))
+    }
+    case Expr.Fail() => {
+      fresh_tv()
     }
   }
   env.expr_map.put(x, t)
