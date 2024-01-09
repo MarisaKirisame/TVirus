@@ -258,7 +258,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv): String = {
       )
     }
     case Expr.Fail() => {
-      s"fail<${codegen_type(env.tyck.expr_map(x), env)}>()"
+      s"fail<Zombie<${codegen_type(env.tyck.expr_map(x), env)}>>()"
     }
   }
 }
