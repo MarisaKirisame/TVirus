@@ -10,6 +10,7 @@ out/
 *.class
 output.cpp
 unformatted.cpp
+a.cpp
 # Log file
 *.log
 
