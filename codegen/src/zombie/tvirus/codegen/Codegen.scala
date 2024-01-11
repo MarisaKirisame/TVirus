@@ -168,6 +168,7 @@ def codegen_vd_fwd(x: ValueDecl, env: CodeGenEnv): String = {
               env
             )
           ) + " " + x.x + codegen_args(bindings, env) + ";"
+      case _ => ""
     }
   }
 }
@@ -464,6 +465,10 @@ def codegen_vd(x: ValueDecl, env: CodeGenEnv): String = {
           return ${codegen_expr(body, env)};
         }"""
       }
+      case expr => s"""
+        const auto ${x.x} = 
+          ${codegen_expr(expr, env)};
+      """
     })
   }
 }
