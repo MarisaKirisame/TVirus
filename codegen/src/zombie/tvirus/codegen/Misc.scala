@@ -74,7 +74,7 @@ def cons(p: Program): Program = {
 }
 
 def let_(v: Expr, b: Expr => Expr): Expr = {
-  val fresh = "meow" // freshName()
+  val fresh = freshName()
   Expr.Let(Seq((fresh, v)), b(Expr.Var(fresh)))
 }
 
@@ -212,122 +212,22 @@ def is_fresh(p: Program): Boolean = {
   p.vds.forall(vd => expr_is_fresh(vd.b, seen))
 }
 
-def let_analysis(x: Expr, var_map: mutable.Map[String, (Expr, Int)]): Unit = {
-  val recurse = x => let_analysis(x, var_map)
-  x match {
-    case Expr.Var(n) => {
-      var_map.get(n) match {
-        case None         => {}
-        case Some((e, i)) => var_map.put(n, (e, i + 1))
-      }
-    }
-    case Expr.Let(bindings, body) => {
-      bindings.map((lhs, rhs) => {
-        assert(var_map.get(lhs).isEmpty)
-        var_map.put(lhs, (rhs, 0))
-        recurse(rhs)
-      })
-      recurse(body)
-    }
-    case Expr.Abs(args, body) => {
-      recurse(body)
-    }
-    case Expr.Match(x, cases) => {
-      recurse(x)
-      cases.map((lhs, rhs) => recurse(rhs))
-    }
-    case Expr.App(f, xs) => {
-      recurse(f)
-      xs.map(recurse)
-    }
-    case Expr.Cons(name, xs) => {
-      xs.map(recurse)
-    }
-    case Expr.LitInt(_) => { }
-    case Expr.If(i, t, e) => {
-      recurse(i)
-      recurse(t)
-      recurse(e)
-    }
-    case Expr.Prim(l, op, r) => {
-      recurse(l)
-      recurse(r)
-    }
-    case Expr.Fail() => { }
-  }
-}
-
-def unlet(x: Expr, var_map: mutable.Map[String, (Expr, Int)]): Expr = {
-  val recurse = x => unlet(x, var_map)
-  val simp_name = (name: String) => {
-    var_map.get(name) match {
-      case None => None
-      case Some((e, i)) => {
-        if (i > 1) {
-          None
-        } else {
-          assert(i == 1)
-          Some(e)
-        }
-      }
-    }
-  }
-  x match {
-    case Expr.App(f, xs)          => Expr.App(recurse(f), xs.map(recurse))
-    case Expr.Abs(bindings, body) => Expr.Abs(bindings, recurse(body))
-    case Expr.Match(x, cases) =>
-      Expr.Match(recurse(x), cases.map((lhs, rhs) => (lhs, recurse(rhs))))
-    case Expr.Var(n) => {
-      simp_name(n) match {
-        case None    => Expr.Var(n)
-        case Some(e) => recurse(e)
-      }
-    }
-    case Expr.Let(binds, in) => {
-      val bindings = binds
-        .filter((lhs, rhs) =>
-          var_map.get(lhs) match {
-            case None         => true
-            case Some((_, i)) => i > 1
-          }
-        )
-        .map((lhs, rhs) => (lhs, recurse(rhs)))
-      if (bindings.isEmpty) {
-        recurse(in)
-      } else {
-        Expr.Let(bindings, recurse(in))
-      }
-    }
-    case Expr.Cons(name, args) => Expr.Cons(name, args.map(recurse))
-    case Expr.LitInt(_) => x
-    case Expr.If(i, t, e) => Expr.If(recurse(i), recurse(t), recurse(e))
-    case Expr.Prim(l, op, r) => Expr.Prim(recurse(l), op, recurse(r))
-    case Expr.Fail() => Expr.Fail()
-  }
-}
-
-def let_simplification(p: Program): Program = {
-  assert(is_fresh(p))
-  val var_map = mutable.Map[String, (Expr, Int)]()
-  p.vds.map(vd => let_analysis(vd.b, var_map))
-  Program(p.tds, p.vds.map(vd => ValueDecl(vd.x, unlet(vd.b, var_map))))
-}
-
 @main def main() = {
   //val program = "example/mod2.tv"
   //val program = "example/list.tv"
   //val program = "example/taba.tv"
   //val program = "example/pascal.tv"
+  //val program = "example/boolean.tv"
   val program = "example/rbt.tv"
+  //val program = "example/debug.tv"
   var x = refresh(cons(drive(CharStreams.fromFileName(program))))
   println(pp(x))
-  //x = unnest_match(x)
   x = let_simplification(merge_abs_app(cps(unnest_match(x))))
   println(pp(x))
   val tyck = TyckEnv(x)
   for ((k, v) <- tyck.var_map) {
     println((k, pp_type(v)))
   }
-  print(codegen(x))
-  compile(codegen(x))
+  val cpp_code = codegen(x)
+  compile(cpp_code)
 }

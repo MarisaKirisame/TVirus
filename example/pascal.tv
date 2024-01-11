@@ -9,3 +9,5 @@ let pascal = \l. match l with
     | Nil() -> 0
     | Cons(x, Nil()) -> x
     | xs -> pascal(pascalNext(xs))
+
+let main = pascal

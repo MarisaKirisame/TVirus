@@ -55,9 +55,9 @@ def pp_expr(x: Expr): String = {
       bracket(pp_expr(f) + "(" + x.map(pp_expr).mkString(", ") + ")")
     case Expr.Var(x) => x
     case Expr.Match(x, cases) =>
-      "match " + pp_expr(x) + " with " + cases
+      "(match " + pp_expr(x) + " with " + cases
         .map(y => pp_pat(y(0)) + " => " + pp_expr(y(1)))
-        .mkString("\n| ")
+        .mkString("\n| ") + ")"
     case Expr.Cons(con, xs) => con + "(" + xs.map(pp_expr).mkString(", ") + ")"
     case Expr.Let(binding, body) =>
       "let " + binding.map(pp_binding).mkString(", ") + " in " + pp_expr(body)
