@@ -1,5 +1,6 @@
 package zombie.tvirus.codegen
 import zombie.tvirus.parser.*
+import algebra.lattice.Bool
 
 def reduce_rhs_wildcard(rhs: Seq[(Seq[Pat], Expr)]) = {
   rhs.map((pats, e) => (pats.tail, e))
@@ -50,12 +51,46 @@ class UnnestMatchEnv(p: Program) {
     p.tds.flatMap(x => x.cons.map(y => (y.name, x.name))).toMap
 }
 
+def pat_covered(x: Pat, y: Pat): Boolean = {
+  y match {
+    case Pat.Var(_) => true
+    case Pat.Wildcard => true
+    case Pat.Cons(yname, ys) => {
+      x match {
+        case Pat.Var(_) => false
+        case Pat.Wildcard => false
+        case Pat.Cons(xname, xs) => {
+          if (yname == xname) {
+            assert(ys.length == xs.length)
+            ys.zip(xs).forall((ysub, xsub) => pat_covered(ysub, xsub))
+          } else {
+            false
+          }
+        }
+      }
+    }
+  }
+  
+}
+
+// check if x is redundent under y.
+// doing this precisely is np complete, so we approximate.
+// in particular we check if x is covered by one of the case in y.
+// this mean some x might be covered but we wont find out.
+def covered(x: Seq[Pat], y: Seq[Seq[Pat]]): Boolean = {
+  y.exists(y_ => 
+    assert(x.length == y_.length)
+    x.zip(y_).forall((x, y) => pat_covered(x, y)))
+}
+
 def transform_program(
     lhs: Seq[Expr],
-    rhs: Seq[(Seq[Pat], Expr)],
+    rhs_unsimplified: Seq[(Seq[Pat], Expr)],
     env: UnnestMatchEnv
 ): Expr = {
-  assert(rhs.forall((p, _) => p.length == lhs.length))
+  assert(rhs_unsimplified.forall((p, _) => p.length == lhs.length))
+  val rhs = rhs_unsimplified.foldLeft(Seq[(Seq[Pat], Expr)]())((l, r) => 
+    if (covered(r(0), l.map(_(0)))) {l} else {l ++ Seq(r)})
   if (rhs.length == 0) {
     Expr.Fail()
   } else if (lhs.length == 0) {
@@ -124,22 +159,43 @@ def unnest_matching(
   transform_program(Seq(x), cases.map((p, e) => (Seq(p), e)), env)
 }
 
+def pat_vars(p: Pat): Seq[String] = {
+  p match {
+    case Pat.Var(n)      => Seq(n)
+    case Pat.Wildcard    => Seq()
+    case Pat.Cons(_, xs) => xs.flatMap(pat_vars)
+  }
+}
+
 def unnest_match_expr(x: Expr, env: UnnestMatchEnv): Expr = {
   val recurse = x => unnest_match_expr(x, env)
   x match {
     case Expr.Var(v)    => Expr.Var(v)
     case Expr.Abs(x, b) => Expr.Abs(x, recurse(b))
-    case Expr.Match(x, cases) =>
-      unnest_matching(
-        recurse(x),
-        cases.map((l, r) => (l, recurse(r))),
-        env
+    case Expr.Match(x, cases) => {
+      val bindings =
+        cases.map((l, r) => (freshName(), Expr.Abs(pat_vars(l), r)))
+      Expr.Let(
+        bindings,
+        unnest_matching(
+          recurse(x),
+          cases
+            .zip(bindings)
+            .map((l, r) =>
+              (
+                l(0),
+                Expr.App(Expr.Var(r(0)), pat_vars(l(0)).map(n => Expr.Var(n)))
+              )
+            ),
+          env
+        )
       )
+    }
     case Expr.App(f, x) =>
       Expr.App(recurse(f), x.map(recurse))
-    case Expr.Cons(name, x) => Expr.Cons(name, x.map(recurse))
-    case Expr.LitInt(x) => Expr.LitInt(x)
-    case Expr.If(i, t, e) => Expr.If(recurse(i), recurse(t), recurse(e))
+    case Expr.Cons(name, x)  => Expr.Cons(name, x.map(recurse))
+    case Expr.LitInt(x)      => Expr.LitInt(x)
+    case Expr.If(i, t, e)    => Expr.If(recurse(i), recurse(t), recurse(e))
     case Expr.Prim(l, op, r) => Expr.Prim(recurse(l), op, recurse(r))
     case Expr.Let(xs, body) => Expr.Let(
       xs.map((name, expr) => (name, recurse(expr))),

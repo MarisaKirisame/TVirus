@@ -212,7 +212,7 @@ def is_fresh(p: Program): Boolean = {
   p.vds.forall(vd => expr_is_fresh(vd.b, seen))
 }
 
-@main def main() = {
+@main def main(): Unit = {
   //val program = "example/mod2.tv"
   //val program = "example/list.tv"
   //val program = "example/taba.tv"
@@ -222,7 +222,7 @@ def is_fresh(p: Program): Boolean = {
   //val program = "example/debug.tv"
   var x = refresh(cons(drive(CharStreams.fromFileName(program))))
   println(pp(x))
-  x = let_simplification(merge_abs_app(cps(unnest_match(x))))
+  x = let_simplification(merge_abs_app(let_simplification(merge_abs_app(cps(unnest_match(x))))))
   println(pp(x))
   val tyck = TyckEnv(x)
   for ((k, v) <- tyck.var_map) {

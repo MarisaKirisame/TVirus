@@ -7,7 +7,8 @@ let member = \x, t. match t with
 | Node(_, y, l, r) -> if (x < y) { member(x, l) } else { if (x > y) { member(x, r) } else { True() } }
 
 let balance = \t. match t with
-| Node(Black(), z, Node(Red(), y, Node(Red(), x, a, b), c), d) -> Node(Red(), y, Node(Black(), x, a, b), Node(Black(), z, c, d))
+| Node(_, z, Node(_, y, Node(Red(), x, a, b), c), d) -> Node(Red(), y, Node(Black(), x, a, b), Node(Black(), z, c, d))
+| Node(_, z, Node(_, x, a, Node(Red(), y, b, c)), d) -> Node(Red(), y, Node(Black(), x, a, b), Node(Black(), z, c, d))
 | x -> x
 
 let insertAux = \x, t. match t with

@@ -6,6 +6,10 @@ def bracket(x: String) = {
   "(" + x + ")"
 }
 
+def cbracket(x: String) = {
+  "{" + x + "}"
+}
+
 def pp_type(x: Type): String = {
   resolve(x) match {
     case Type.Var(name, _) => name
