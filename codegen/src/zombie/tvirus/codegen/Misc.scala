@@ -51,6 +51,7 @@ def consType(x: Type, decls: Set[String]): Type = {
   resolve(x) match {
     case v@Type.Var(_, _) => if (decls.contains(v.name)) { Type.TyCons(v.name) } else { v }    
     case Type.App(f, xs) => Type.App(recurse(f), xs.map(recurse))
+    case Type.Prim(t) => Type.Prim(t)
   }
 }
 def cons(p: Program): Program = {
@@ -82,21 +83,22 @@ def refresh_expr(x: Expr, remap: Map[String, String]): Expr = {
   x match {
     case Expr.Var(n) => Expr.Var(remap.get(n).getOrElse(n))
     case Expr.Abs(bindings, body) => {
+      // ensure there are not duplicate values in bindings
+      assert(bindings.toSet.size == bindings.size)
       val (new_bindings, new_remap) =
         bindings.foldLeft((Seq[String](), remap))((res, next_name) => {
-          val fn = freshName()
-          assert(res(1).get(next_name).isEmpty)
+          val fn = freshName()          
           (res(0) :+ fn, res(1) + (next_name -> fn))
         })
       Expr.Abs(new_bindings, refresh_expr(body, new_remap))
     }
     case Expr.Let(bindings, body) => {
+      assert(bindings.toSet.size == bindings.size)
       val (new_bindings, new_remap) = bindings.foldLeft(
         (Seq[(String, Expr)](), remap)
       )((res, next_binding) => {
         val next_name = next_binding(0)
         val fn = freshName()
-        assert(res(1).get(next_name).isEmpty)
         (
           res(0) :+ (fn, refresh_expr(next_binding(1), res(1))),
           res(1) + (next_name -> fn)
