@@ -13,6 +13,6 @@ jobs:
       - name: install mill
         run: |
           curl -L https://github.com/com-lihaoyi/mill/releases/download/0.11.6/0.11.6 > mill && chmod +x mill
-          cp mill /usr/bin
+          sudo cp mill /usr/bin
       - name: test
         run: python test_compile_all.py
