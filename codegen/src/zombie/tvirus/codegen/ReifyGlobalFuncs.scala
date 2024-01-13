@@ -25,8 +25,6 @@ def reify_global_funcs_aux(e: Expr, g: Seq[String], t: TyckEnv): Expr = {
       Expr.Prim(rec(l), op, rec(r))
     case Expr.Var(name) =>
       if (member(name, g)) {
-        println(name)
-        println(t.var_map(name))
         function_type_p(t.var_map(name)) match {
           case Some(formals) => {
             Expr.Abs(
