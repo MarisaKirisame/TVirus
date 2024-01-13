@@ -20,7 +20,7 @@ def size_case(x: (Pat, Expr)): Int = {
 def size_expr(x: Expr): Int = {
   val recurse = x => size_expr(x)
   x match {
-    case Expr.Var(_)| Expr.InlineVar(_) | Expr.LitInt(_) => 1
+    case Expr.Var(_) | Expr.InlineVar(_) | Expr.LitInt(_) => 1
     case Expr.Abs(l, r)       => l.length + recurse(r)
     case Expr.App(f, x)       => recurse(f) + sum(x.map(recurse))
     case Expr.Match(x, cases) => recurse(x) + sum(cases.map(size_case))
@@ -28,6 +28,7 @@ def size_expr(x: Expr): Int = {
     case Expr.Let(d, b)       => sum(d.map((l, r) => recurse(r))) + recurse(b)
     case Expr.If(i, t, e)     => recurse(i) + recurse(t) + recurse(e)
     case Expr.Prim(l, op, r)  => recurse(l) + 1 + recurse(r)
+    case Expr.Fail()          => 1
   }
 }
 
@@ -39,15 +40,18 @@ def unsimpl_expr(x: Expr): Expr = {
   val recurse = x => unsimpl_expr(x)
   x match {
     case Expr.InlineVar(n) => Expr.Var(n)
-    case Expr.Abs(l, r) => Expr.Abs(l, recurse(r))
-    case Expr.Let(d, b) => Expr.Let(d.map((l, r) => (l, recurse(r))), recurse(b))
+    case Expr.Abs(l, r)    => Expr.Abs(l, recurse(r))
+    case Expr.Let(d, b) =>
+      Expr.Let(d.map((l, r) => (l, recurse(r))), recurse(b))
     case Expr.App(f, x) => Expr.App(recurse(f), x.map(recurse))
-    case Expr.Match(x, cases) => Expr.Match(recurse(x), cases.map((l, r) => (l, recurse(r))))
-    case Expr.Var(n) => Expr.Var(n)
-    case Expr.If(i, t, e) => Expr.If(recurse(i), recurse(t), recurse(e))
+    case Expr.Match(x, cases) =>
+      Expr.Match(recurse(x), cases.map((l, r) => (l, recurse(r))))
+    case Expr.Var(n)         => Expr.Var(n)
+    case Expr.If(i, t, e)    => Expr.If(recurse(i), recurse(t), recurse(e))
     case Expr.Prim(l, op, r) => Expr.Prim(recurse(l), op, recurse(r))
     case Expr.Cons(name, xs) => Expr.Cons(name, xs.map(recurse))
-    case Expr.LitInt(i) => Expr.LitInt(i)
+    case Expr.LitInt(i)      => Expr.LitInt(i)
+    case Expr.Fail()         => Expr.Fail()
   }
 }
 
@@ -57,11 +61,10 @@ def unsimpl(x: Program): Program = {
 
 def simpl(p: Program): Program = {
   val new_p = let_simplification(refresh(merge_abs_app(p)))
-  if (size(new_p) != size(p)) { 
+  if (size(new_p) != size(p)) {
     println("continue simplification!")
     simpl(new_p)
-   }
-  else { 
+  } else {
     unsimpl(p)
   }
 }

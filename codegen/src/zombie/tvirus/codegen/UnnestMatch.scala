@@ -69,7 +69,7 @@ def pat_covered_by(x: Pat, y: Pat): Boolean = {
         case Pat.Cons(xname, xs) => {
           if (yname == xname) {
             assert(ys.length == xs.length)
-            ys.zip(xs).forall((ysub, xsub) => pat_covered_by(ysub, xsub))
+            xs.zip(ys).forall((xsub, ysub) => pat_covered_by(xsub, ysub))
           } else {
             false
           }
@@ -97,8 +97,10 @@ def transform_program_raw(
     rhs: Seq[Expr],
     env: LEnv
 ): Expr = {
+  println((matched, lhs))
   if (lhs.length == 0) {
     // no more pattern
+    assert(false)
     Expr.Fail()
   } else if (matched.length == 0) {
     // nothing else to match on
