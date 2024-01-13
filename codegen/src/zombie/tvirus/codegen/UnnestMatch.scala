@@ -13,7 +13,7 @@ def reduce_rhs_var(name: String, lhs: Seq[Seq[Pat]], rhs: Seq[Expr]) = {
       pats.head match {
         case Pat.Wildcard => (pats.tail, e)
         case Pat.Var(x) =>
-          (pats.tail, Expr.Let(Seq((x, Expr.Var(name))), e))
+          (pats.tail, Expr.Let(Seq((x, Expr.InlineVar(name))), e))
       }
     )
   (zipped.map(_(0)), zipped.map(_(1)))
@@ -40,7 +40,7 @@ def reduce_rhs_cons(
         }
         case Pat.Var(x) => {
           val let_e = Expr.Let(
-            Seq((x, Expr.Cons(cons_name, cons_args.map(Expr.Var)))),
+            Seq((x, Expr.Cons(cons_name, cons_args.map(Expr.InlineVar)))),
             e
           )
           Seq((cons_args.map(_ => Pat.Wildcard) ++ pats.tail, let_e))
@@ -92,7 +92,7 @@ def covered_by(x: Seq[Pat], y: Seq[Seq[Pat]]): Boolean = {
 }
 
 def transform_program_raw(
-    matched: Seq[Expr],
+    matched: Seq[String],
     lhs: Seq[Seq[Pat]],
     rhs: Seq[Expr],
     env: LEnv
@@ -121,12 +121,8 @@ def transform_program_raw(
         case _            => false
       })
     ) {
-      val name = freshName()
-      val (l, r) = reduce_rhs_var(name, lhs, rhs)
-      Expr.Let(
-        Seq((name, matched.head)),
-        transform_program(matched.tail, l, r, env)
-      )
+      val (l, r) = reduce_rhs_var(matched.head, lhs, rhs)
+      transform_program(matched.tail, l, r, env)
     } else {
       val sconss = env.env.typename_to_scons(
         env.env.consname_to_typename(
@@ -139,17 +135,12 @@ def transform_program_raw(
         )
       )
       Expr.Match(
-        matched.head,
+        Expr.InlineVar(matched.head),
         sconss.flatMap(scons => {
           val names: Seq[String] = Seq.fill(scons.narg)({ freshName() })
           val cons = Pat.Cons(scons.name, names.map(name => Pat.Var(name)))
           val (l, r) = reduce_rhs_cons(scons.name, names, lhs, rhs)
-          Seq(
-            (
-              cons,
-              transform_program(names.map(Expr.Var) ++ matched.tail, l, r, env)
-            )
-          )
+          Seq((cons, transform_program(names ++ matched.tail, l, r, env)))
         })
       )
     }
@@ -157,7 +148,7 @@ def transform_program_raw(
 }
 
 def transform_program(
-    matched: Seq[Expr],
+    matched: Seq[String],
     _lhs: Seq[Seq[Pat]],
     _rhs: Seq[Expr],
     env: LEnv
@@ -180,16 +171,16 @@ def transform_program(
       val applied = lhs
         .zip(funcs)
         .map((l, r) =>
-          Expr.App(Expr.Var(r), l.flatMap(pat_vars).map(Expr.InlineVar))
+          Expr.App(Expr.InlineVar(r), l.flatMap(pat_vars).map(Expr.InlineVar))
         )
       val inserted =
-        Expr.Abs(funcs, transform_program_raw(matched, lhs, applied, env))
+        Expr.Abs(matched ++ funcs, transform_program_raw(matched, lhs, applied, env))
       env.mem.put(lhs, v)
       env.ll = env.ll :+ (v, inserted)
-      Expr.App(Expr.Var(v), rhs)
+      Expr.App(Expr.Var(v), matched.map(Expr.InlineVar) ++ rhs)
     }
     case Some(name) => {
-      Expr.App(Expr.Var(name), rhs)
+      Expr.App(Expr.Var(name), matched.map(Expr.InlineVar) ++ rhs)
     }
   }
 }
@@ -207,7 +198,7 @@ class LEnv(_env: UnnestMatchEnv) {
 }
 
 def unnest_matching(
-    x: Expr,
+    x: String,
     cases: Seq[(Pat, Expr)],
     env: UnnestMatchEnv
 ): Expr = {
@@ -236,18 +227,18 @@ def unnest_match_expr(x: Expr, env: UnnestMatchEnv): Expr = {
     case Expr.Var(v)    => Expr.Var(v)
     case Expr.Abs(x, b) => Expr.Abs(x, recurse(b))
     case Expr.Match(x, cases) => {
-      val bindings =
-        cases.map((l, r) => (freshName(), Expr.Abs(pat_vars(l), r)))
+      val x_bind = freshName()
+      val bindings = cases.map((l, r) =>(freshName(), Expr.Abs(pat_vars(l), r)))
       Expr.Let(
-        bindings,
+        (x_bind, recurse(x)) +: bindings,
         unnest_matching(
-          recurse(x),
+          x_bind,
           cases
             .zip(bindings)
             .map((l, r) =>
               (
                 l(0),
-                Expr.App(Expr.Var(r(0)), pat_vars(l(0)).map(n => Expr.Var(n)))
+                Expr.App(Expr.InlineVar(r(0)), pat_vars(l(0)).map(Expr.InlineVar))
               )
             ),
           env

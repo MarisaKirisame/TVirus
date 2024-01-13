@@ -146,6 +146,12 @@ class CodeGenEnv(p: Program) {
   val global_funcs: Set[String] = {
     p.vds.map(vd => vd.x).toSet
   }
+  var macros = Seq[String]()
+  val type_hc = mutable.Map[String, String]()
+
+  def finish(x: String): String = {
+    macros.mkString("\n") + "\n" + x
+  }
 }
 
 def codegen_args(bindings: Seq[String], env: CodeGenEnv): String = {
@@ -329,7 +335,7 @@ def named_cref_wrapper(tn: (String, String)): String = {
   s"const ${tn(0)}& ${tn(1)}"
 }
 
-def codegen_type(x: Type, env: CodeGenEnv): String = {
+def codegen_type_raw(x: Type, env: CodeGenEnv): String = {
   val recurse = y => codegen_type(y, env)
   resolve(x) match {
     case Type.Var(name, _) => name
@@ -342,6 +348,22 @@ def codegen_type(x: Type, env: CodeGenEnv): String = {
       s"${name}<${xs.map(recurse).mkString(", ")}>"
     case Type.Prim(PrimType.INT)  => "int64_t"
     case Type.Prim(PrimType.BOOL) => "bool"
+  }
+}
+
+def codegen_type(x: Type, env: CodeGenEnv): String = {
+  val ret = codegen_type_raw(x, env)
+  env.type_hc.get(ret) match {
+    case Some(x) => x
+    case None =>
+      if (ret.length < 20) {
+        ret
+      } else {
+        val fn = freshName()
+        env.macros = env.macros :+ s"#define ${fn} ${ret}"
+        env.type_hc.put(ret, fn)
+        fn
+      }
   }
 }
 
@@ -487,6 +509,7 @@ def codegen_vd(x: ValueDecl, env: CodeGenEnv): String = {
 
 def codegen(x: Program): String = {
   val env = CodeGenEnv(x)
+  env.finish(
   """
   #include <memory>
   #include <variant>
@@ -497,7 +520,7 @@ def codegen(x: Program): String = {
     x.tds.map(codegen_td_fwd(_, env)).mkString("\n") +
     x.tds.map(codegen_td(_, env)).mkString("\n") +
     x.vds.map(codegen_vd_fwd(_, env)).mkString("\n") +
-    x.vds.map(codegen_vd(_, env)).mkString("\n")
+    x.vds.map(codegen_vd(_, env)).mkString("\n"))
 }
 
 def compile(x: String) = {

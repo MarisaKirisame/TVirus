@@ -217,7 +217,7 @@ def is_fresh(p: Program): Boolean = {
 }
 
 @main def main(): Unit = {
-  // val program = "example/mod2.tv"
+  //val program = "example/mod2.tv"
   // val program = "example/list.tv"
   // val program = "example/merge.tv"
   // val program = "example/taba.tv"
@@ -231,10 +231,11 @@ def is_fresh(p: Program): Boolean = {
   // x = simpl(cps(simpl(unnest_match(x))))
   println("simplification done!!!")
   println(pp(x))
+  println(size(x))
   val tyck = TyckEnv(x)
   // for ((k, v) <- tyck.var_map) {
   //  println((k, pp_type(v)))
   // }
-  // val cpp_code = codegen(x)
-  // compile(cpp_code)
+  val cpp_code = codegen(x)
+  compile(cpp_code)
 }

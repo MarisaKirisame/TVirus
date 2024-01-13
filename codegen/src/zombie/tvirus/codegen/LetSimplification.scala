@@ -86,7 +86,7 @@ def unlet(x: Expr, env: LetSimplEnv): Expr = {
     case Expr.InlineVar(n) => {
       env.defs.get(n) match {
         case None    => Expr.InlineVar(n)
-        case Some(e) => e
+        case Some(e) => recurse(e)
       }
     }
     case Expr.Let(binds, in) => {

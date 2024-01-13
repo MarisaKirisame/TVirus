@@ -30,7 +30,8 @@ def occur_check(l: Type, r: Type): Boolean = {
     }
   }
 }
-def unify(l_raw: Type, r_raw: Type): Unit = {
+def unify(l_raw: Type, r_raw: Type, err_msg: => String): Unit = {
+  def recurse(l: Type, r: Type) = unify(l, r, err_msg)
   val l = resolve(l_raw)
   val r = resolve(r_raw)
   if (l ne r) {
@@ -52,19 +53,20 @@ def unify(l_raw: Type, r_raw: Type): Unit = {
         if (ll.length != rl.length) {
           println(pp_type(l))
           println(pp_type(r))
+          println(err_msg)
           assert(ll.length == rl.length)
         } else {
-          ll.zip(rl).map((x, y) => unify(x, y))
-          unify(lr, rr)
+          ll.zip(rl).map((x, y) => recurse(x, y))
+          recurse(lr, rr)
         }
       }
       case (Type.TyCons(l), Type.TyCons(r)) => {
         assert(l == r)
       }
       case (Type.App(lf, lx), Type.App(rf, rx)) => {
-        unify(lf, rf)
+        recurse(lf, rf)
         assert(lx.length == rx.length)
-        lx.zip(rx).map((l, r) => unify(l, r))
+        lx.zip(rx).map((l, r) => recurse(l, r))
       }
       case (Type.Prim(l), Type.Prim(r)) => {
         assert(l == r)
@@ -130,17 +132,17 @@ def new_binding(name: String, env: TyckEnv) = {
 def tyck_primop(l: Type, op: PrimOp, r: Type): Type = {
   op match {
     case PrimOp.EQ => {
-      unify(l, r)
+      unify(l, r, "")
       Type.Prim(PrimType.BOOL)
     }
     case PrimOp.LT | PrimOp.GT | PrimOp.GE | PrimOp.LE => {
-      unify(l, Type.Prim(PrimType.INT))
-      unify(r, Type.Prim(PrimType.INT))
+      unify(l, Type.Prim(PrimType.INT), "")
+      unify(r, Type.Prim(PrimType.INT), "")
       Type.Prim(PrimType.BOOL)
     }
     case PrimOp.MINUS | PrimOp.ADD | PrimOp.MUL | PrimOp.DIV | PrimOp.MOD => {
-      unify(l, Type.Prim(PrimType.INT))
-      unify(r, Type.Prim(PrimType.INT))
+      unify(l, Type.Prim(PrimType.INT), "")
+      unify(r, Type.Prim(PrimType.INT), "")
       Type.Prim(PrimType.INT)
     }
   }
@@ -153,10 +155,13 @@ def tyck_expr(x: Expr, env: TyckEnv): Type = {
       env.var_map.get(v) match {
         case Some(t) => instantiate(t)
         case None => {
-          println(v)
+          println(s"not in scope: ${v}")
           assert(false)
         }
       }
+    }
+    case Expr.InlineVar(x) => {
+      recurse(Expr.Var(x))
     }
     case Expr.Abs(bindings, body) => {
       Type.Func(bindings.map(new_binding(_, env)), recurse(body))
@@ -165,14 +170,14 @@ def tyck_expr(x: Expr, env: TyckEnv): Type = {
       val x_ty = recurse(x)
       val out_ty = fresh_tv()
       cases.map((lhs, rhs) => {
-        unify(x_ty, tyck_pat(lhs, env))
-        unify(out_ty, recurse(rhs))
+        unify(x_ty, tyck_pat(lhs, env), "")
+        unify(out_ty, recurse(rhs), "")
       })
       out_ty
     }
     case Expr.App(f, xs) => {
       val out_ty = fresh_tv()
-      unify(recurse(f), Type.Func(xs.map(recurse), out_ty))
+      unify(recurse(f), Type.Func(xs.map(recurse), out_ty), {pp_expr(x)})
       out_ty
     }
     case Expr.Cons(f, xs) => {
@@ -180,15 +185,15 @@ def tyck_expr(x: Expr, env: TyckEnv): Type = {
     }
     case Expr.DeclValue(t) => t
     case Expr.Let(bindings, body) => {
-      bindings.map((lhs, rhs) => unify(new_binding(lhs, env), recurse(rhs)))
+      bindings.map((lhs, rhs) => unify(new_binding(lhs, env), recurse(rhs), ""))
       recurse(body)
     }
     case Expr.LitInt(_) => Type.Prim(PrimType.INT)
     case Expr.If(i, t, e) => {
-      unify(recurse(i), Type.Prim(PrimType.BOOL))
+      unify(recurse(i), Type.Prim(PrimType.BOOL), "")
       val out_ty = fresh_tv()
-      unify(recurse(t), out_ty)
-      unify(recurse(e), out_ty)
+      unify(recurse(t), out_ty, "")
+      unify(recurse(e), out_ty, "")
       out_ty
     }
     case Expr.Prim(l, op, r) => {
@@ -242,7 +247,7 @@ def tyck_vd(vd: ValueDecl, env: TyckEnv): Unit = {
     env.unvisited.remove(vd.x)
     val tv = fresh_tv()
     env.var_map.put(vd.x, tv)
-    unify(tyck_expr(vd.b, env), tv)
+    unify(tyck_expr(vd.b, env), tv, "")
     env.var_map.put(vd.x, generalize(tv))
   }
 }

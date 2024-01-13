@@ -20,7 +20,7 @@ def size_case(x: (Pat, Expr)): Int = {
 def size_expr(x: Expr): Int = {
   val recurse = x => size_expr(x)
   x match {
-    case Expr.Var(_) | Expr.InlineVar(_) | Expr.LitInt(_) => 1
+    case Expr.Var(_)| Expr.InlineVar(_) | Expr.LitInt(_) => 1
     case Expr.Abs(l, r)       => l.length + recurse(r)
     case Expr.App(f, x)       => recurse(f) + sum(x.map(recurse))
     case Expr.Match(x, cases) => recurse(x) + sum(cases.map(size_case))
@@ -35,10 +35,33 @@ def size(x: Program): Int = {
   sum(x.vds.map(vd => size_expr(vd.b)))
 }
 
+def unsimpl_expr(x: Expr): Expr = {
+  val recurse = x => unsimpl_expr(x)
+  x match {
+    case Expr.InlineVar(n) => Expr.Var(n)
+    case Expr.Abs(l, r) => Expr.Abs(l, recurse(r))
+    case Expr.Let(d, b) => Expr.Let(d.map((l, r) => (l, recurse(r))), recurse(b))
+    case Expr.App(f, x) => Expr.App(recurse(f), x.map(recurse))
+    case Expr.Match(x, cases) => Expr.Match(recurse(x), cases.map((l, r) => (l, recurse(r))))
+    case Expr.Var(n) => Expr.Var(n)
+    case Expr.If(i, t, e) => Expr.If(recurse(i), recurse(t), recurse(e))
+    case Expr.Prim(l, op, r) => Expr.Prim(recurse(l), op, recurse(r))
+    case Expr.Cons(name, xs) => Expr.Cons(name, xs.map(recurse))
+    case Expr.LitInt(i) => Expr.LitInt(i)
+  }
+}
+
+def unsimpl(x: Program): Program = {
+  Program(x.tds, x.vds.map(vd => ValueDecl(vd.x, unsimpl_expr(vd.b))))
+}
+
 def simpl(p: Program): Program = {
-  tyck_program(p)
-  tyck_program(merge_abs_app(p))
-  val new_p = let_simplification(merge_abs_app(p))
-  if (size(new_p) < size(p)) { simpl(new_p) }
-  else { p }
+  val new_p = let_simplification(refresh(merge_abs_app(p)))
+  if (size(new_p) != size(p)) { 
+    println("continue simplification!")
+    simpl(new_p)
+   }
+  else { 
+    unsimpl(p)
+  }
 }
