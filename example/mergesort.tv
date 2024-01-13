@@ -34,6 +34,7 @@ let list1 = \x. Cons(x, Nil())
 
 let reducehalf = \f, l. match l with
     | Nil() -> Nil()
+    | Cons(x, Nil()) -> x
     | Cons(x, xs) -> match listdivide(l, length(l) / 2) with
                         | Pairc(a, b) -> f(reducehalf(f, a), reducehalf(f, b))
 
