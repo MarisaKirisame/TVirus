@@ -1,0 +1,43 @@
+data List a = Nil() | Cons(a, List a)
+
+data Pair a b = Pairc(a, b)
+
+let map = \f, l. match l with
+    | Nil() -> Nil()
+    | Cons(x, xs) -> Cons(f(x), map(f, xs))
+
+let length = \l. match l with
+    | Nil() -> 0
+    | Cons(x, xs) -> length(xs) + 1
+
+let listdivide = \l, i.
+    if (i == 0) {
+        Pairc(Nil(), l)
+    } else {
+        match l with
+            | Cons(x, xs) -> (match listdivide(xs, i - 1) with
+                                | Pairc(a, b) -> Pairc(Cons(x, a), b))
+            | Nil() -> Pairc(Nil(), Nil())
+    }
+
+let merge = \a, b. match a with
+    | Nil() -> b
+    | Cons(aa, as) -> match b with
+                        | Nil() -> a
+                        | Cons(ba, bs) -> if aa < ba {
+                                              Cons(aa, merge(as, b))
+                                          } else {
+                                              Cons(ba, merge(a, bs))
+                                          }
+
+let list1 = \x. Cons(x, Nil())
+
+let reducehalf = \f, l. match l with
+    | Nil() -> Nil()
+    | Cons(x, Nil()) -> x
+    | Cons(x, xs) -> match listdivide(l, length(l) / 2) with
+                        | Pairc(a, b) -> f(reducehalf(f, a), reducehalf(f, b))
+
+let mergesort = \l. reducehalf(merge, map(list1, l))
+
+let main = mergesort(Cons(4, Cons(2, Cons(3, Cons(1, Cons(5, Nil()))))))
