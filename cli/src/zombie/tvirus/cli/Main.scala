@@ -18,7 +18,7 @@ object Main {
     val fileReader = new FileReader(new File(source_file))
 
     var prog = refresh(cons(drive(CharStreams.fromReader(fileReader))))
-    prog = let_simplification(merge_abs_app(cps(unnest_match(prog))))
+    prog = let_simplification(merge_abs_app(reify_global_funcs(cps(unnest_match(prog)))))
 
     try {
       val fileWriter = new FileWriter(target_file)
