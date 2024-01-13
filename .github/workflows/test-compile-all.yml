@@ -11,10 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v14
-      - name: install mill
-        run: |
-          curl -L https://github.com/com-lihaoyi/mill/releases/download/0.11.6/0.11.6 > mill && chmod +x mill
-          sudo cp mill /usr/bin
-      - name: test
-        run: python test_compile_all.py
+      - uses: coursier/setup-action@v1
+        with:
+          jvm: zulu:17.0.9
+          apps: mill scala-cli
+      - name: test-compile-all
+        run: scala-cli run test_compile_all.sc

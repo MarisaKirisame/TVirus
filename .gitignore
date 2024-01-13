@@ -1,6 +1,7 @@
 *.iml
 .idea/
 .bsp/
+.scala-build/
 .metals/
 .vscode/
 out/
