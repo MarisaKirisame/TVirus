@@ -33,6 +33,7 @@ case class SCons(name: String, narg: Int)
 enum Expr:
   case Prim(left: Expr, op: PrimOp, right: Expr)
   case Var(name: String)
+  case InlineVar(name: String)
   case LitInt(inner: Int)
   case App(f: Expr, xs: Seq[Expr])
   case Abs(xs: Seq[String], b: Expr)

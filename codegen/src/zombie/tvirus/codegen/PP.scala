@@ -49,6 +49,7 @@ def pp_op(op: PrimOp): String = {
     case PrimOp.MINUS => "-"
     case PrimOp.LT => "<"
     case PrimOp.GT => ">"
+    case PrimOp.DIV => "/"
 }
 
 def pp_expr(x: Expr): String = {
@@ -58,6 +59,7 @@ def pp_expr(x: Expr): String = {
     case Expr.App(f, x) =>
       bracket(pp_expr(f) + "(" + x.map(pp_expr).mkString(", ") + ")")
     case Expr.Var(x) => x
+    case Expr.InlineVar(x) => s"Inline(${x})"
     case Expr.Match(x, cases) =>
       "(match " + pp_expr(x) + " with " + cases
         .map(y => pp_pat(y(0)) + " => " + pp_expr(y(1)))

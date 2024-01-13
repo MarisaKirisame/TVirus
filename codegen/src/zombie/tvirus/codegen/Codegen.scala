@@ -250,7 +250,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv): Value = {
       Value.Expr(
         s"${get_adt_name(matched_type)}Match(" +
           s"${recurse_expr(matched)}, ${transformed_cases
-              .map((lhs, rhs) => s"[&](${lhs(1).map(n => "const auto& " ++ n).mkString(", ")}){${recurse_stmts(rhs)}}")
+              .map((lhs, rhs) => s"[=](${lhs(1).map(n => "const auto& " ++ n).mkString(", ")}){${recurse_stmts(rhs)}}")
               .mkString(", ")})"
       )
     }

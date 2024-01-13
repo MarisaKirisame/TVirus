@@ -153,7 +153,7 @@ def tyck_expr(x: Expr, env: TyckEnv): Type = {
       env.var_map.get(v) match {
         case Some(t) => instantiate(t)
         case None => {
-          print(v)
+          println(v)
           assert(false)
         }
       }

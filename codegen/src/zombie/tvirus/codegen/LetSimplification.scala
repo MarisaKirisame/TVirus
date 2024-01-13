@@ -5,8 +5,8 @@ import zombie.tvirus.parser.*
 
 def is_atom(x: Expr): Boolean = {
   x match {
-    case Expr.Var(_) => true
-    case _           => false
+    case Expr.Var(_) | Expr.InlineVar(_) => true
+    case _                               => false
   }
 }
 
@@ -28,6 +28,7 @@ def let_analysis(x: Expr, env: LetSimplEnv): Unit = {
         case Some(i) => env.use_count.put(n, i + 1)
       }
     }
+    case Expr.InlineVar(n) => recurse(Expr.Var(n))
     case Expr.Let(bindings, body) => {
       bindings.map((lhs, rhs) => {
         assert(env.defs.get(lhs).isEmpty)
@@ -80,6 +81,12 @@ def unlet(x: Expr, env: LetSimplEnv): Expr = {
       simp_name(n) match {
         case None    => Expr.Var(n)
         case Some(e) => recurse(e)
+      }
+    }
+    case Expr.InlineVar(n) => {
+      env.defs.get(n) match {
+        case None    => Expr.InlineVar(n)
+        case Some(e) => e
       }
     }
     case Expr.Let(binds, in) => {
