@@ -306,6 +306,9 @@ def codegen_expr(x: Expr, env: CodeGenEnv): Value = {
     case Expr.LitInt(x) => {
       BE.val_wrapper("int64_t", x.toString)
     }
+    case Expr.LitBool(x) => {
+      BE.val_wrapper("bool", if (x) "true" else "false")
+    }
     case Expr.If(i, t, e) =>
       BE.codegen_bind(
         recurse(i),

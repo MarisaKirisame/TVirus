@@ -36,6 +36,7 @@ def reify_global_funcs_aux(e: Expr, g: Seq[String], t: TyckEnv): Expr = {
         }
       } else e
     case Expr.LitInt(x)  => e
+    case Expr.LitBool(x) => e
     case Expr.App(f, xs) => Expr.App(rec(f), xs.map(rec))
     case Expr.Abs(xs, b) => Expr.Abs(xs, rec(b))
     case Expr.Let(xs, b) =>

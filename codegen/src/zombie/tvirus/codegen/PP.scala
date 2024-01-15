@@ -68,6 +68,7 @@ def pp_expr(x: Expr): String = {
     case Expr.Let(binding, body) =>
       "let " + binding.map(pp_binding).mkString(", ") + " in " + pp_expr(body)
     case Expr.LitInt(x) => x.toString()
+    case Expr.LitBool(x) => if (x) "True" else "False"
     case Expr.Prim(l, op, r) => s"(${pp_expr(l)} ${pp_op(op)} ${pp_expr(r)})"
     case Expr.If(i, t, e) => s"if ${pp_expr(i)} {${pp_expr(t)}} else {${pp_expr(e)}}"
     case Expr.Fail() => "fail"

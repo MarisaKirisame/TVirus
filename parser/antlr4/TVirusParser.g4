@@ -54,6 +54,8 @@ expr:
 	| SYM_LPAR expr SYM_RPAR												# exprParen
 	| expr primOp expr														# exprPrimOp
 	| LIT_INT																# exprLitInt
+	| KW_TRUE																# exprKwTrue
+	| KW_FALSE																# exprKwFalse
 	| IDENT																	# exprVar;
 
 valueDecl: KW_LET sBind SYM_EQ expr;
