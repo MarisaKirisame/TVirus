@@ -48,4 +48,7 @@ KW_ELSE: 'else';
 KW_INT: 'Int';
 KW_BOOL: 'Bool';
 
+KW_TRUE: 'True';
+KW_FALSE: 'False';
+
 IDENT: LETTER (LETTER | DIGIT)*;

@@ -53,6 +53,7 @@ def let_analysis(x: Expr, env: LetSimplEnv): Unit = {
       xs.map(recurse)
     }
     case Expr.LitInt(_) => {}
+    case Expr.LitBool(_) => {}
     case Expr.If(i, t, e) => {
       recurse(i)
       recurse(t)
@@ -101,6 +102,7 @@ def unlet(x: Expr, env: LetSimplEnv): Expr = {
     }
     case Expr.Cons(name, args) => Expr.Cons(name, args.map(recurse))
     case Expr.LitInt(_)        => x
+    case Expr.LitBool(_)       => x
     case Expr.If(i, t, e)      => Expr.If(recurse(i), recurse(t), recurse(e))
     case Expr.Prim(l, op, r)   => Expr.Prim(recurse(l), op, recurse(r))
     case Expr.Fail()           => Expr.Fail()

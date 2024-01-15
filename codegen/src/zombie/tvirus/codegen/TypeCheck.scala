@@ -189,6 +189,7 @@ def tyck_expr(x: Expr, env: TyckEnv): Type = {
       recurse(body)
     }
     case Expr.LitInt(_) => Type.Prim(PrimType.INT)
+    case Expr.LitBool(_) => Type.Prim(PrimType.BOOL)
     case Expr.If(i, t, e) => {
       unify(recurse(i), Type.Prim(PrimType.BOOL), "")
       val out_ty = fresh_tv()

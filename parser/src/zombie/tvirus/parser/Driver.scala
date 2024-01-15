@@ -130,6 +130,12 @@ object TVirusParserExprVisitor extends TVirusParserBaseVisitor[Expr] {
   override def visitExprLitInt(ctx: ExprLitIntContext): Expr =
     Expr.LitInt(Integer.parseInt(ctx.LIT_INT().getSymbol().getText()))
 
+  override def visitExprKwTrue(ctx: ExprKwTrueContext): Expr =
+    Expr.LitBool(true)
+  
+  override def visitExprKwFalse(ctx: ExprKwFalseContext): Expr =
+    Expr.LitBool(false)
+
   override def visitExprAppEmpty(ctx: ExprAppEmptyContext): Expr =
     Expr.App(visit(ctx.expr()), Seq.empty)
 

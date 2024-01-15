@@ -1,5 +1,5 @@
-data Boolean = True() | False()
+data Boolean = MyTrue() | MyFalse()
 
 let andfunc = \l, r. match l with
-| True() -> r
-| False() -> False()
+| MyTrue() -> r
+| MyFalse() -> MyFalse()

@@ -35,6 +35,7 @@ enum Expr:
   case Var(name: String)
   case InlineVar(name: String)
   case LitInt(inner: Int)
+  case LitBool(inner: Boolean)
   case App(f: Expr, xs: Seq[Expr])
   case Abs(xs: Seq[String], b: Expr)
   case Let(xs: Seq[(String, Expr)], b: Expr)

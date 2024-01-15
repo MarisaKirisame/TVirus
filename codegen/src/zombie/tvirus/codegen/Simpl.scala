@@ -20,7 +20,7 @@ def size_case(x: (Pat, Expr)): Int = {
 def size_expr(x: Expr): Int = {
   val recurse = x => size_expr(x)
   x match {
-    case Expr.Var(_) | Expr.InlineVar(_) | Expr.LitInt(_) => 1
+    case Expr.Var(_) | Expr.InlineVar(_) | Expr.LitInt(_) | Expr.LitBool(_) => 1
     case Expr.Abs(l, r)       => l.length + recurse(r)
     case Expr.App(f, x)       => recurse(f) + sum(x.map(recurse))
     case Expr.Match(x, cases) => recurse(x) + sum(cases.map(size_case))
@@ -51,6 +51,7 @@ def unsimpl_expr(x: Expr): Expr = {
     case Expr.Prim(l, op, r) => Expr.Prim(recurse(l), op, recurse(r))
     case Expr.Cons(name, xs) => Expr.Cons(name, xs.map(recurse))
     case Expr.LitInt(i)      => Expr.LitInt(i)
+    case Expr.LitBool(_)     => x
     case Expr.Fail()         => Expr.Fail()
   }
 }

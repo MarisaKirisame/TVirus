@@ -44,6 +44,7 @@ def consExpr(e: Expr, consDecls: Set[String]): Expr = {
       )
     case Expr.Var(n)      => Expr.Var(n)
     case Expr.LitInt(x)   => Expr.LitInt(x)
+    case Expr.LitBool(x)  => e
     case Expr.If(i, t, e) => Expr.If(recurse(i), recurse(t), recurse(e))
 }
 
@@ -122,6 +123,7 @@ def refresh_expr(x: Expr, remap: Map[String, String]): Expr = {
     case Expr.LitInt(x) => {
       Expr.LitInt(x)
     }
+    case Expr.LitBool(inner) => x
     case Expr.Prim(l, op, r) => {
       Expr.Prim(recurse(l), op, recurse(r))
     }
@@ -159,6 +161,7 @@ def merge_abs_app_expr(x: Expr): Expr = {
     case Expr.LitInt(x) => {
       Expr.LitInt(x)
     }
+    case Expr.LitBool(_) => x
     case Expr.If(i, t, e) => {
       Expr.If(recurse(i), recurse(t), recurse(e))
     }
@@ -205,6 +208,7 @@ def expr_is_fresh(x: Expr, seen: mutable.Set[String]): Boolean = {
     case Expr.App(f, xs)     => recurse(f) && xs.forall(recurse)
     case Expr.Cons(name, xs) => xs.forall(recurse)
     case Expr.LitInt(_)      => true
+    case Expr.LitBool(_)     => true
     case Expr.If(i, t, e)    => recurse(i) && recurse(t) && recurse(e)
     case Expr.Prim(l, op, r) => recurse(l) && recurse(r)
     case Expr.Fail()         => true
