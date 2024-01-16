@@ -5,8 +5,8 @@ import zombie.tvirus.parser.*
 
 def is_atom(x: Expr): Boolean = {
   x match {
-    case Expr.Var(_) => true
-    case _           => false
+    case Expr.Var(_) | Expr.InlineVar(_) => true
+    case _                               => false
   }
 }
 
@@ -28,6 +28,7 @@ def let_analysis(x: Expr, env: LetSimplEnv): Unit = {
         case Some(i) => env.use_count.put(n, i + 1)
       }
     }
+    case Expr.InlineVar(n) => recurse(Expr.Var(n))
     case Expr.Let(bindings, body) => {
       bindings.map((lhs, rhs) => {
         assert(env.defs.get(lhs).isEmpty)
@@ -52,6 +53,7 @@ def let_analysis(x: Expr, env: LetSimplEnv): Unit = {
       xs.map(recurse)
     }
     case Expr.LitInt(_) => {}
+    case Expr.LitBool(_) => {}
     case Expr.If(i, t, e) => {
       recurse(i)
       recurse(t)
@@ -82,6 +84,12 @@ def unlet(x: Expr, env: LetSimplEnv): Expr = {
         case Some(e) => recurse(e)
       }
     }
+    case Expr.InlineVar(n) => {
+      env.defs.get(n) match {
+        case None    => Expr.InlineVar(n)
+        case Some(e) => recurse(e)
+      }
+    }
     case Expr.Let(binds, in) => {
       val bindings = binds
         .filter((lhs, rhs) => !env.can_remove(lhs))
@@ -94,6 +102,7 @@ def unlet(x: Expr, env: LetSimplEnv): Expr = {
     }
     case Expr.Cons(name, args) => Expr.Cons(name, args.map(recurse))
     case Expr.LitInt(_)        => x
+    case Expr.LitBool(_)       => x
     case Expr.If(i, t, e)      => Expr.If(recurse(i), recurse(t), recurse(e))
     case Expr.Prim(l, op, r)   => Expr.Prim(recurse(l), op, recurse(r))
     case Expr.Fail()           => Expr.Fail()

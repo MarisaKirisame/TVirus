@@ -35,23 +35,27 @@ def consExpr(e: Expr, consDecls: Set[String]): Expr = {
           Expr.Cons(name, xs.map(recurse))
         case _ => Expr.App(recurse(f), xs.map(recurse))
     case Expr.Abs(xs, b) => Expr.Abs(xs, recurse(b))
-    case Expr.Let(xs, b) => Expr.Let(xs.map((l, r) => (l, recurse(r))), recurse(b))
+    case Expr.Let(xs, b) =>
+      Expr.Let(xs.map((l, r) => (l, recurse(r))), recurse(b))
     case Expr.Match(x, bs) =>
       Expr.Match(
         recurse(x),
         bs.map(b => (b(0), recurse(b(1))))
       )
-    case Expr.Var(n) => Expr.Var(n)
-    case Expr.LitInt(x) => Expr.LitInt(x)
+    case Expr.Var(n)      => Expr.Var(n)
+    case Expr.LitInt(x)   => Expr.LitInt(x)
+    case Expr.LitBool(x)  => e
     case Expr.If(i, t, e) => Expr.If(recurse(i), recurse(t), recurse(e))
 }
 
 def consType(x: Type, decls: Set[String]): Type = {
   val recurse = x => consType(x, decls)
   resolve(x) match {
-    case v@Type.Var(_, _) => if (decls.contains(v.name)) { Type.TyCons(v.name) } else { v }    
+    case v @ Type.Var(_, _) =>
+      if (decls.contains(v.name)) { Type.TyCons(v.name) }
+      else { v }
     case Type.App(f, xs) => Type.App(recurse(f), xs.map(recurse))
-    case Type.Prim(t) => Type.Prim(t)
+    case Type.Prim(t)    => Type.Prim(t)
   }
 }
 def cons(p: Program): Program = {
@@ -81,13 +85,14 @@ def let_(v: Expr, b: Expr => Expr): Expr = {
 def refresh_expr(x: Expr, remap: Map[String, String]): Expr = {
   val recurse = x => refresh_expr(x, remap)
   x match {
-    case Expr.Var(n) => Expr.Var(remap.get(n).getOrElse(n))
+    case Expr.Var(n)       => Expr.Var(remap.get(n).getOrElse(n))
+    case Expr.InlineVar(n) => Expr.InlineVar(remap.get(n).getOrElse(n))
     case Expr.Abs(bindings, body) => {
       // ensure there are not duplicate values in bindings
       assert(bindings.toSet.size == bindings.size)
       val (new_bindings, new_remap) =
         bindings.foldLeft((Seq[String](), remap))((res, next_name) => {
-          val fn = freshName()          
+          val fn = freshName()
           (res(0) :+ fn, res(1) + (next_name -> fn))
         })
       Expr.Abs(new_bindings, refresh_expr(body, new_remap))
@@ -118,6 +123,7 @@ def refresh_expr(x: Expr, remap: Map[String, String]): Expr = {
     case Expr.LitInt(x) => {
       Expr.LitInt(x)
     }
+    case Expr.LitBool(inner) => x
     case Expr.Prim(l, op, r) => {
       Expr.Prim(recurse(l), op, recurse(r))
     }
@@ -135,8 +141,8 @@ def refresh(p: Program): Program = {
 def merge_abs_app_expr(x: Expr): Expr = {
   val recurse = x => merge_abs_app_expr(x)
   x match {
-    case Expr.Var(_)              => x
-    case Expr.Abs(bindings, body) => Expr.Abs(bindings, recurse(body))
+    case Expr.Var(_) | Expr.InlineVar(_) => x
+    case Expr.Abs(bindings, body)        => Expr.Abs(bindings, recurse(body))
     case Expr.Match(x, cases) =>
       Expr.Match(x, cases.map((lhs, rhs) => (lhs, recurse(rhs))))
     case Expr.App(Expr.Abs(bindings, body), xs) => {
@@ -155,6 +161,7 @@ def merge_abs_app_expr(x: Expr): Expr = {
     case Expr.LitInt(x) => {
       Expr.LitInt(x)
     }
+    case Expr.LitBool(_) => x
     case Expr.If(i, t, e) => {
       Expr.If(recurse(i), recurse(t), recurse(e))
     }
@@ -172,7 +179,7 @@ def merge_abs_app(p: Program): Program = {
 def expr_is_fresh(x: Expr, seen: mutable.Set[String]): Boolean = {
   val recurse = x => expr_is_fresh(x, seen)
   x match {
-    case Expr.Var(_) => true
+    case Expr.Var(_) | Expr.InlineVar(_) => true
     case Expr.Abs(bindings, body) => {
       var ret = true
       bindings.map(n => {
@@ -200,10 +207,11 @@ def expr_is_fresh(x: Expr, seen: mutable.Set[String]): Boolean = {
     }
     case Expr.App(f, xs)     => recurse(f) && xs.forall(recurse)
     case Expr.Cons(name, xs) => xs.forall(recurse)
-    case Expr.LitInt(_) => true
-    case Expr.If(i, t, e) => recurse(i) && recurse(t) && recurse(e)
+    case Expr.LitInt(_)      => true
+    case Expr.LitBool(_)     => true
+    case Expr.If(i, t, e)    => recurse(i) && recurse(t) && recurse(e)
     case Expr.Prim(l, op, r) => recurse(l) && recurse(r)
-    case Expr.Fail() => true
+    case Expr.Fail()         => true
   }
 }
 
@@ -212,22 +220,31 @@ def is_fresh(p: Program): Boolean = {
   p.vds.forall(vd => expr_is_fresh(vd.b, seen))
 }
 
-@main def main() = {
+@main def main(): Unit = {
   //val program = "example/mod2.tv"
-  //val program = "example/list.tv"
-  //val program = "example/taba.tv"
-  //val program = "example/pascal.tv"
-  //val program = "example/boolean.tv"
-  val program = "example/rbt.tv"
-  //val program = "example/debug.tv"
-  var x = refresh(cons(drive(CharStreams.fromFileName(program))))
+  // val program = "example/list.tv"
+  // val program = "example/merge.tv"
+  // val program = "example/taba.tv"
+  // val program = "example/pascal.tv"
+  // val program = "example/boolean.tv"
+  //val program = "example/rbt.tv"
+  //val program = "example/mergesort.tv"
+  val program = "example/debug.tv"
+  var x = reify_global_funcs(refresh(cons(drive(CharStreams.fromFileName(program)))))
   println(pp(x))
-  x = let_simplification(merge_abs_app(cps(unnest_match(x))))
+  x = unnest_match(x)
+  println("unnest ok!!!")
   println(pp(x))
+  x = simpl(x)
+  // x = simpl(cps(simpl(unnest_match(x))))
+  println("simplification done!!!")
+  println(pp(x))
+  println(size(x))
+  return
   val tyck = TyckEnv(x)
-  for ((k, v) <- tyck.var_map) {
-    println((k, pp_type(v)))
-  }
+  // for ((k, v) <- tyck.var_map) {
+  //  println((k, pp_type(v)))
+  // }
   val cpp_code = codegen(x)
   compile(cpp_code)
 }

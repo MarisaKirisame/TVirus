@@ -6,6 +6,10 @@ def bracket(x: String) = {
   "(" + x + ")"
 }
 
+def cbracket(x: String) = {
+  "{" + x + "}"
+}
+
 def pp_type(x: Type): String = {
   resolve(x) match {
     case Type.Var(name, _) => name
@@ -45,6 +49,7 @@ def pp_op(op: PrimOp): String = {
     case PrimOp.MINUS => "-"
     case PrimOp.LT => "<"
     case PrimOp.GT => ">"
+    case PrimOp.DIV => "/"
 }
 
 def pp_expr(x: Expr): String = {
@@ -54,6 +59,7 @@ def pp_expr(x: Expr): String = {
     case Expr.App(f, x) =>
       bracket(pp_expr(f) + "(" + x.map(pp_expr).mkString(", ") + ")")
     case Expr.Var(x) => x
+    case Expr.InlineVar(x) => s"Inline(${x})"
     case Expr.Match(x, cases) =>
       "(match " + pp_expr(x) + " with " + cases
         .map(y => pp_pat(y(0)) + " => " + pp_expr(y(1)))
@@ -62,6 +68,7 @@ def pp_expr(x: Expr): String = {
     case Expr.Let(binding, body) =>
       "let " + binding.map(pp_binding).mkString(", ") + " in " + pp_expr(body)
     case Expr.LitInt(x) => x.toString()
+    case Expr.LitBool(x) => if (x) "True" else "False"
     case Expr.Prim(l, op, r) => s"(${pp_expr(l)} ${pp_op(op)} ${pp_expr(r)})"
     case Expr.If(i, t, e) => s"if ${pp_expr(i)} {${pp_expr(t)}} else {${pp_expr(e)}}"
     case Expr.Fail() => "fail"

@@ -1,0 +1,19 @@
+name: "Test compile all examples"
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: coursier/setup-action@v1
+        with:
+          jvm: zulu:17.0.9
+          apps: mill scala-cli
+      - name: test-compile-all
+        run: scala-cli run test_compile_all.sc
