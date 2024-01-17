@@ -1,13 +1,21 @@
 package zombie.tvirus.prettier
 
-sealed abstract class Description
+// sealed abstract class Description
 
-case class Nil() extends Description
-case class Line() extends Description
-case class Text(text: String) extends Description
-case class Concat(left: Description, right: Description) extends Description
-case class Union(left: Description, right: Description) extends Description
-case class Nest(indent: Int, description: Description) extends Description
+// case class Nil() extends Description
+// case class Line() extends Description
+// case class Text(text: String) extends Description
+// case class Concat(left: Description, right: Description) extends Description
+// case class Union(left: Description, right: Description) extends Description
+// case class Nest(indent: Int, description: Description) extends Description
+
+enum Description:
+  case Nil()
+  case Line()
+  case Text(text: String)
+  case Concat(left: Description, right: Description)
+  case Union(left: Description, right: Description)
+  case Nest(indent: Int, description: Description)
 
 // Document is made for laziness
 sealed abstract class Document {

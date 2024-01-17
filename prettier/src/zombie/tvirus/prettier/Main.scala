@@ -1,6 +1,7 @@
 package zombie.tvirus.prettier
 
 import scala.collection.immutable.List
+import Description.*
 
 def treeExample(): Unit = {
   case class Tree(name: String, sons: List[Tree])
