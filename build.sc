@@ -16,7 +16,7 @@ object codegen extends CommonModule {
     ivy"org.typelevel::cats-collections-core:0.9.8"
   )
 
-  def moduleDeps = Seq(parser)
+  def moduleDeps = Seq(parser, prettier)
 }
 
 object prettier extends CommonModule {

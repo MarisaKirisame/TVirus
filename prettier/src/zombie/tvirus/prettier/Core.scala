@@ -2,6 +2,7 @@ package zombie.tvirus.prettier
 
 import scala.annotation.tailrec
 import scala.collection.immutable
+import Description.*
 
 def flatten(d: Description): Description = d match {
   case Nil() => Nil()

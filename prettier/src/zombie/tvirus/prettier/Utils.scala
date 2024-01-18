@@ -1,5 +1,7 @@
 package zombie.tvirus.prettier
 
+import Description.*
+
 extension (left: Description)
   def <> (right: Description) = Concat(left, right)
 
