@@ -61,6 +61,7 @@ def pp_expr(x: Expr): Description = {
     case Expr.App(f, y) =>
       Text("(") <> pp_expr(f) <> Text("(") <> y.map(pp_expr).flatMap(d => List(d, Text(", "))).dropRight(1).foldLeft(Text(""))(Concat(_, _)) <> Text("))")
     case Expr.Var(y) => Text(y)
+    case Expr.InlineVar(y) => Text(y)
     case Expr.Match(y, cases) =>
       Text("(match ") <> pp_expr(y) <> Text(" with ") <> cases.map(z => Nest(2, pp_pat(z(0)) <> Text(" => ") <>
                                                                   pp_expr(z(1)))).flatMap(z => List(z, Text("\n| "))).foldLeft(Text(""))(Concat(_, _)) <> Text(")")
