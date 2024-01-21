@@ -1,36 +1,36 @@
 package zombie.tvirus.cli
 
-import java.io.{File, FileReader, FileWriter, IOException}
 import org.antlr.v4.runtime.CharStreams
-import mainargs.{main, arg, ParserForMethods, Flag}
+import mainargs.{main, arg, ParserForMethods}
 
 import zombie.tvirus.parser.drive
 import zombie.tvirus.codegen.*
 
+extension [A, B](a: A) infix def |>(f: A => B): B = f(a)
+
 object Main {
   @main
-  def run(
+  def compile(
       @arg(positional = true, doc = "source-file")
       source_file: String,
       @arg(short = 'o', doc = "target-file")
       target_file: String = "a.cpp"
   ) = {
-    val fileReader = new FileReader(new File(source_file))
 
-    var prog = refresh(cons(drive(CharStreams.fromReader(fileReader))))
-    prog = let_simplification(merge_abs_app(reify_global_funcs(cps(unnest_match(prog)))))
+    val p = os.read(os.Path(source_file, os.pwd))
+      |> CharStreams.fromString
+      |> drive
+      |> cons
+      |> refresh
+      |> unnest_match
+      |> cps
+      |> reify_global_funcs
+      |> merge_abs_app
+      |> let_simplification
+      |> codegen
 
-    try {
-      val fileWriter = new FileWriter(target_file)
-
-      fileWriter.write(codegen(prog))
-
-      fileWriter.close()
-    } catch {
-      case e: IOException =>
-        println("fail to write into target-file" + e.getMessage)
-    }
-
+    os.write.over(os.Path(target_file, os.pwd), p)
   }
+
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
 }

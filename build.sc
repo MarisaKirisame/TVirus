@@ -24,7 +24,8 @@ object prettier extends CommonModule {
 
 object cli extends CommonModule {
   def ivyDeps = Agg(
-    ivy"com.lihaoyi::mainargs:0.5.4"
+    ivy"com.lihaoyi::mainargs:0.5.4",
+    ivy"com.lihaoyi::os-lib:0.9.3"
   )
 
   def moduleDeps = Seq(parser, codegen)
