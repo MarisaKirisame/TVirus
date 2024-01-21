@@ -52,6 +52,8 @@ def pp_op(op: PrimOp): Description = {
     case PrimOp.MINUS => Text("-")
     case PrimOp.LT => Text("<")
     case PrimOp.GT => Text(">")
+    case PrimOp.DIV => Text("/")
+    case PrimOp.MOD => Text("%")
 }
 
 def pp_expr(x: Expr): Description = {
@@ -70,6 +72,7 @@ def pp_expr(x: Expr): Description = {
       Text("let ") <> binding.map(pp_binding).flatMap(d => List(d, Text(", "))).dropRight(1).foldLeft(Text(""))(Concat(_, _)) <> Text(" in ") <> pp_expr(body)
     case Expr.LitInt(y) => Text(y.toString)
     case Expr.Prim(l, op, r) => pp_expr(l) <> pp_op(op) <> pp_expr(r)
+    case Expr.LitBool(x) => if (x) { Text("True") } else { Text("False") }
     case Expr.If(i, t, e) =>
       Text("if ") <> pp_expr(i) <> Text("{") <> pp_expr(t) <> Text("}") <> Text("else") <> Text("{") <> pp_expr(e) <> Text("}")
     case Expr.Fail() => Text("fail")

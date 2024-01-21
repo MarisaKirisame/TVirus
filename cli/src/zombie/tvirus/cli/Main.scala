@@ -38,6 +38,7 @@ object Main {
       |> refresh
       |> simpl
       |> unnest_match
+      |> simpl
       |> cps
       |> reify_global_funcs
       |> merge_abs_app
