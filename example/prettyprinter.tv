@@ -1,0 +1,71 @@
+data Pair a b = P(a, b)
+
+data LIST a = NIL() | CONS(a, LIST a)
+
+def lappd = \l1 l2. match l1 with
+    | NIL() -> l2
+    | CONS(x, xs) -> CONS(x, lappd(xs, l2))
+
+def strrpt = \s, n.
+    if (n == 0) { "" } else { STRAPPEND(s, strrpt(s, n - 1)) }
+
+data Descr
+    = Nil()
+    | Concat(Descr, Descr)
+    | Nest(INT, Descr)
+    | Text(STRING)
+    | Line()
+    | Union(Descr, Descr)
+
+data Doc
+    = DNil()
+    | DText(STRING, Doc)
+    | DLine(INT, Doc)
+
+let id = \x. x
+
+let flatten = \d. match d with
+    | Nil() -> Nil()
+    | Line() -> Text(" ")
+    | Text(s) -> Text(s)
+    | Concat(l, r) -> match P(flatten(l), flatten(r)) with
+        | P(Nil(), ri) -> ri
+        | P(le, Nil()) -> le
+        | P(le, ri) -> Concat(le, ri)
+    | Union(l, r) -> flatten(r)
+    | Nest(n, d) -> flatten(d)
+
+let group = \d. Union(flatten(d), d)
+
+let helper = \w, d, cur, ds. match ds with
+    | NIL() -> DNil()
+    | CONS(P(idt, dsc), tl) -> match dsc with
+        | Nil() -> helper(cur, tl)
+        | Line() -> DLine(idt, helper(cur, tl))
+        | Text(s) -> DText(s, helper(cur + STRLEN(s), tl))
+        | Concat(l, r) -> helper(cur, CONS(P(idt, l), CONS(P(idt, r), tl)))
+        | Nest(i, descr) -> helper(cur, CONS(P(idt + i, descr), tl))
+        | Union(l, r) -> chsbtr(w - cur, id, helper(cur, CONS(P(idt, l), tl)), helper(cur, CONS(P(idt, r), tl)))
+
+let getcont = \d. match d with
+    | DNil() -> DNil()
+    | DText(s, c) -> c
+
+let chsbtr = \spc, ots, l, r.
+    if (spc < 0) {
+        r
+    } else {
+        match l with
+            | DNil() -> outside(l)
+            | DLine() -> outside(l)
+            | DText(s, d) -> chsbtr(spc - STRLEN(s), \c. outside(DText(s, c)), getcont(l), r)
+    }
+
+def best = \w, d. helper(w, d, 0, CONS(P(0, d), NIL()))
+
+def layout = \d. match d with
+    | DNil() -> ""
+    | DText(s, c) -> lappd(s, layout(getcont(d)))
+    | DLine(idt, c) -> STRAPPEND(STRAPPEND("\n", strrpt(" ", idt)), layout(getcont(d)))
+
+def main = \d. layout(DText(4, "abcdefg"))

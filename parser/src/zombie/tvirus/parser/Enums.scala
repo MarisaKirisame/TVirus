@@ -1,10 +1,10 @@
 package zombie.tvirus.parser
 
 enum PrimOp:
-  case ADD, MINUS, MUL, DIV, MOD, EQ, NE, GT, LT, GE, LE
+  case ADD, MINUS, MUL, DIV, MOD, EQ, NE, GT, LT, GE, LE, STRAPPEND, STRLEN
 
 enum PrimType:
-  case INT, BOOL
+  case INT, BOOL, STRING
 
 enum Type:
   case Prim(t: PrimType)
@@ -36,6 +36,7 @@ enum Expr:
   case InlineVar(name: String)
   case LitInt(inner: Int)
   case LitBool(inner: Boolean)
+  case LitString(inner: String)
   case App(f: Expr, xs: Seq[Expr])
   case Abs(xs: Seq[String], b: Expr)
   case Let(xs: Seq[(String, Expr)], b: Expr)
