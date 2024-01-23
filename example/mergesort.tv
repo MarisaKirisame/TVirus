@@ -1,14 +1,4 @@
-data List a = Nil() | Cons(a, List a)
-
 data Pair a b = Pairc(a, b)
-
-let map = \f, l. match l with
-    | Nil() -> Nil()
-    | Cons(x, xs) -> Cons(f(x), map(f, xs))
-
-let length = \l. match l with
-    | Nil() -> 0
-    | Cons(x, xs) -> length(xs) + 1
 
 let listdivide = \l, i.
     if (i == 0) {
