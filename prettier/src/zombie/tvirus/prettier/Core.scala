@@ -1,59 +1,129 @@
 package zombie.tvirus.prettier
 
-import scala.annotation.tailrec
-import scala.collection.immutable
-import Description.*
+import cats.kernel.Order
+import cats.syntax.all.*
+import cats.Eval
 
-def flatten(d: Description): Description = d match {
-  case Nil() => Nil()
-  case Line() => Text(" ")
-  case Text(text) => Text(text)
-  case Concat(left, right) => (flatten(left), flatten(right)) match {
-    case (Nil(), right) => right
-    case (left, Nil()) => left
-    case (left, right) => Concat(left, right)
-  }
-  case Union(left, _) => flatten(left)
-  case Nest(_, description) => flatten(description)
+trait Cost[T] extends Order[T]:
+  val nl: T
+  def text(c: Int, l: Int): T
+  
+  extension (x: T)
+    def +(y: T): T
+
+object Cost:
+  def apply[T](using c: Cost[T]) = c
+
+case class Measure[C: Cost](last: Int, cost: C, doc: Doc) {
+  def concat(other: Measure[C]): Measure[C] =
+    Measure(other.last, cost + other.cost, doc <> other.doc)
+
+  def nested(n: Int): Measure[C] =
+    Measure(last, cost, Doc.Nest(n, doc))
+
+  def aligned: Measure[C] =
+    Measure(last, cost, Doc.Align(doc))
 }
 
-def group(d: Description) = Union(flatten(d), d)
-
-def best(width: Int, d: Description): Document = {
-  def helper(current: Int, ds: List[(Int, Description)]): Document = ds match
-    case ::(head, tail) =>
-      val (indent, description) = head
-      description match
-        case Nil() => helper(current, tail)
-        case Line() => DLine(indent, ()=>helper(current, tail))
-        case Text(text) => DText(text, ()=>helper(current + text.length, tail))
-        case Concat(left, right) => helper(current, (indent, left)::(indent, right)::tail)
-        case Nest(i, description) => helper(current, (indent + i, description)::tail)
-        case Union(left, right) =>
-          chooseBetter(width - current, x=>x,
-            helper(current, (indent, left)::tail),
-            ()=>helper(current, (indent, right)::tail)
-          )
-
-    case immutable.Nil => DNil()
-
-  @tailrec
-  def chooseBetter(space: Int, outside: Document=>Document, left: Document, right: ()=>Document): Document = {
-    if space < 0 then
-      right()
-    else {
-      left match
-        case _: DNil => outside(left)
-        case _: DLine => outside(left)
-        case DText(text, _) =>
-          chooseBetter(space - text.length, cont=>outside(DText(text, ()=>cont)), left.cont, right)
+given [C: Cost]: Order[Measure[C]] with
+  def compare(x: Measure[C], y: Measure[C]): Int = {
+    if (x.last < y.last) {
+      -1
+    } else if (x.last > y.last) {
+      1
+    } else {
+      Cost[C].compare(x.cost, y.cost)
     }
   }
 
-  helper(0, (0, d)::scala.Nil)
-}
+extension [C: Cost](using M: Order[Measure[C]])(ls: List[Measure[C]])
+  def concatMeasures(rs: List[Measure[C]]): List[Measure[C]] = (ls, rs) match
+    case (Nil, Nil) => Nil
+    case (Nil, _)   => rs
+    case (_, Nil)   => ls
+    case (hd0 :: tl0, hd1 :: tl1) =>
+      if (M.lteqv(hd0, hd1)) {
+        ls.concatMeasures(tl1)
+      } else if (M.lteqv(hd1, hd0)) {
+        tl0.concatMeasures(rs)
+      } else if (hd0.last > hd1.last) {
+        hd0 :: (tl0.concatMeasures(rs))
+      } else {
+        hd1 :: (ls.concatMeasures(tl1))
+      }
 
-def layout(d: Document): String = d match
-  case DNil() => ""
-  case DText(text, _cont) => text ++ layout(d.cont)
-  case DLine(indent, _cont) => "\n" ++ " " * indent + layout(d.cont)
+enum MeasureSet[C](using Cost[C]):
+  case Tainted(m: Eval[Measure[C]])
+  case Set(l: List[Measure[C]])
+
+  def tainted = this match
+    case Tainted(m) => Tainted(m)
+    case Set(l)     => Tainted(Eval.now(l.head))
+
+  def lifted(f: Measure[C] => Measure[C]) = this match
+    case Tainted(m) => Tainted(Eval.later(f(m.value)))
+    case Set(l)     => Set(l.map(f))
+
+  def concat(other: MeasureSet[C]) = (this, other) match
+    case (_, Tainted(_))      => this
+    case (Tainted(_), Set(_)) => other
+    case (Set(ls), Set(rs))   => Set(ls.concatMeasures(rs))
+
+// def memoize[I, O](f: I => O): I => O = new mutable.HashMap[I, O]() {
+//   override def apply(key: I) = getOrElseUpdate(key, f(key))
+// }
+
+enum Doc:
+  case Text(t: String)
+  case NewLine
+  case Concat(a: Doc, b: Doc)
+  case Nest(n: Int, d: Doc)
+  case Align(d: Doc)
+  case Choice(a: Doc, b: Doc)
+
+  def <>(o: Doc) = Concat(this, o)
+
+  def layouted: String = {
+    def aux(d: Doc, c: Int, i: Int): List[String] = d match
+      case Text(t) => List(t)
+      case NewLine => List("", " " * i)
+      case Concat(a, b) => {
+        val as = aux(a, c, i)
+        val bs = if (as.length > 1) {
+          aux(b, as.last.length(), i)
+        } else {
+          aux(b, c + as.last.length(), i)
+        }
+        as.init.appended(as.last ++ bs.head).appendedAll(bs.tail)
+      }
+      case Nest(n, ds) => aux(ds, c, i + n)
+      case Align(ds)   => aux(ds, c, c)
+    aux(this, 0, 0).mkString("\n")
+  }
+
+  def measured[C: Cost](c: Int, i: Int): Measure[C] = this match
+    case Text(t) => Measure(c + t.length(), Cost[C].text(c, t.length()), this)
+    case NewLine => Measure(i, Cost[C].nl + Cost[C].text(0, i), this)
+    case Concat(a, b) => {
+        val ma = a.measured(c, i)
+        val mb = b.measured(ma.last, i)
+        ma
+    }
+    case Nest(n, d) =>
+    case Align(d) =>
+    case Choice(a, b) =>
+  
+
+given Conversion[String, Doc] = Doc.Text.apply
+
+// object Doc:
+//   def <>
+@main
+def main() = {
+  val v1 = "= func(" <> Doc.Nest(
+    2,
+    Doc.NewLine <> "pretty," <> Doc.NewLine <> "print"
+  ) <> Doc.NewLine <> ")"
+  val v2 = "a" <> Doc.Nest(42, Doc.Align("b" <> Doc.NewLine <> "c"))
+  println(v2.layouted)
+}
