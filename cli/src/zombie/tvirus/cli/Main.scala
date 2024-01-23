@@ -43,6 +43,9 @@ object Main {
       |> reify_global_funcs
       |> merge_abs_app
       |> let_simplification
+      |> simpl
+      |> refresh
+      |> dce
       |> codegen
 
     os.write.over(os.Path(target_file, os.pwd), p)
