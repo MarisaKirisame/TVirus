@@ -4,6 +4,7 @@ import java.io.FileWriter
 import java.io.IOException
 import zombie.tvirus.parser.*
 import collection.mutable
+import zombie.tvirus.prettier.*
 
 def hoas(f: (Expr => Expr)): Expr = {
   val x_ = freshName()
@@ -221,26 +222,24 @@ def is_fresh(p: Program): Boolean = {
 }
 
 @main def main(): Unit = {
-  //val program = "example/mod2.tv"
+  // val program = "example/mod2.tv"
   // val program = "example/list.tv"
   // val program = "example/merge.tv"
   // val program = "example/taba.tv"
   // val program = "example/pascal.tv"
   // val program = "example/boolean.tv"
-  //val program = "example/rbt.tv"
-  //val program = "example/mergesort.tv"
+  // val program = "example/rbt.tv"
+  // val program = "example/mergesort.tv"
   val program = "example/debug.tv"
   var x = reify_global_funcs(refresh(cons(drive(CharStreams.fromFileName(program)))))
-  println(pp(x))
+  println(show(pp(x)))
   x = unnest_match(x)
   println("unnest ok!!!")
-  println(pp(x))
+  println(show(pp(x)))
   x = simpl(x)
   // x = simpl(cps(simpl(unnest_match(x))))
   println("simplification done!!!")
-  println(pp(x))
-  println(size(x))
-  return
+  println(show(pp(x)))
   val tyck = TyckEnv(x)
   // for ((k, v) <- tyck.var_map) {
   //  println((k, pp_type(v)))

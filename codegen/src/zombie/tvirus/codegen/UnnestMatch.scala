@@ -100,7 +100,6 @@ def transform_program_raw(
   println((matched, lhs))
   if (lhs.length == 0) {
     // no more pattern
-    assert(false)
     Expr.Fail()
   } else if (matched.length == 0) {
     // nothing else to match on

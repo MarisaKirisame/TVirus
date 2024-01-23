@@ -72,8 +72,8 @@ def unify(l_raw: Type, r_raw: Type, err_msg: => String): Unit = {
         assert(l == r)
       }
       case _ => {
-        println(pp_type(l))
-        println(pp_type(r))
+        println(show(pp_type(l)))
+        println(show(pp_type(r)))
         assert(false)
       }
   }

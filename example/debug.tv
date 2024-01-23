@@ -1,33 +1,13 @@
-data point = Point(int, int)
+data List a = Nil() | Cons(a, List a)
 
-data kdtree = Leaf(point) | Node(int, kdtree, kdtree)
-
-data list a = Nil() | Cons(a, list a)
-
-let length = \l. match l with
-    | Nil() -> 0
-    | Cons(x, rest) -> length(rest) + 1
-
-let filter = \f, l. match l with
+let map = \f, l. match l with
     | Nil() -> Nil()
-    | Cons(x, xs) -> if f(x) {
-                         Cons(x, filter(f, xs))
-                     } else {
-                         filter(f, xs)
-                     }
+    | Cons(x, xs) -> Cons(f(x), map(f, xs))
 
-let get = \axis, p. match p with
-    | Point(x, y) -> if axis == 0 { x } else { y }
+let reverseAppend = \l1, l2. match l1 with
+    | Nil() -> l2
+    | Cons(a, l) -> reverseAppend(l, Cons(a, l2))
 
-let not = \x. if x { False } else { True }
+let reverse = \l. reverseAppend(l, Nil())
 
-let nthelement = \l, k, lt. match l with
-    | Nil() -> Point(0, 0)
-    | Cons(x, Nil()) -> x
-    | Cons(x0, xs) -> let left = filter(\x. lt(x, x0), l),
-                          
-                              nthelement(left, k)
-                          
-
-
-let main = 1
+let main = let x = Cons(1, Nil()), y = reverse(x), z = map((\i. i + 1), y) in z
