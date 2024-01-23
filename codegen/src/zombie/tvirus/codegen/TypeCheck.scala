@@ -177,7 +177,7 @@ def tyck_expr(x: Expr, env: TyckEnv): Type = {
     }
     case Expr.App(f, xs) => {
       val out_ty = fresh_tv()
-      unify(recurse(f), Type.Func(xs.map(recurse), out_ty), {pp_expr(x)})
+      unify(recurse(f), Type.Func(xs.map(recurse), out_ty), "{pp_expr(x)}") // TODO
       out_ty
     }
     case Expr.Cons(f, xs) => {
