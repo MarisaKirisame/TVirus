@@ -10,7 +10,7 @@ def is_atom(x: Expr): Boolean = {
   }
 }
 
-class LetSimplEnv {
+class LetSimplEnv(val w: Watcher) {
   val defs = mutable.Map[String, Expr]()
   val use_count = mutable.Map[String, Int]()
 
@@ -81,13 +81,19 @@ def unlet(x: Expr, env: LetSimplEnv): Expr = {
     case Expr.Var(n) => {
       simp_name(n) match {
         case None    => Expr.Var(n)
-        case Some(e) => recurse(e)
+        case Some(e) => {
+          env.w.make_progress()
+          recurse(e)
+        }
       }
     }
     case Expr.InlineVar(n) => {
       env.defs.get(n) match {
         case None    => Expr.InlineVar(n)
-        case Some(e) => recurse(e)
+        case Some(e) => {
+          env.w.make_progress()
+          recurse(e)
+        }
       }
     }
     case Expr.Let(binds, in) => {
@@ -109,9 +115,9 @@ def unlet(x: Expr, env: LetSimplEnv): Expr = {
   }
 }
 
-def let_simplification(p: Program): Program = {
+def let_simplification(p: Program, w: Watcher): Program = {
   assert(is_fresh(p))
-  val env = LetSimplEnv()
+  val env = LetSimplEnv(w)
   p.vds.map(vd => let_analysis(vd.b, env))
   Program(p.tds, p.vds.map(vd => ValueDecl(vd.x, unlet(vd.b, env))))
 }

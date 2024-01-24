@@ -268,6 +268,5 @@ def unnest_match(p: Program): Program = {
   )
   val ret = refresh(transformed)
   println(show(pp(ret)))
-  tyck_program(ret)
   ret
 }

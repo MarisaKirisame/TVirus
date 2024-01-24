@@ -6,6 +6,19 @@ import zombie.tvirus.parser.*
 import collection.mutable
 import zombie.tvirus.prettier.*
 
+class Watcher {
+  var progress = true
+  def make_progress() = {
+    progress = true
+  }
+
+  def progress_made() = {
+    val ret = progress
+    progress = false
+    ret
+  }
+}
+
 def hoas(f: (Expr => Expr)): Expr = {
   val x_ = freshName()
   Expr.Abs(Seq(x_), f(Expr.Var(x_)))
@@ -137,44 +150,6 @@ def refresh_expr(x: Expr, remap: Map[String, String]): Expr = {
 
 def refresh(p: Program): Program = {
   Program(p.tds, p.vds.map(vd => ValueDecl(vd.x, refresh_expr(vd.b, Map()))))
-}
-
-def merge_abs_app_expr(x: Expr): Expr = {
-  val recurse = x => merge_abs_app_expr(x)
-  x match {
-    case Expr.Var(_) | Expr.InlineVar(_) => x
-    case Expr.Abs(bindings, body)        => Expr.Abs(bindings, recurse(body))
-    case Expr.Match(x, cases) =>
-      Expr.Match(x, cases.map((lhs, rhs) => (lhs, recurse(rhs))))
-    case Expr.App(Expr.Abs(bindings, body), xs) => {
-      assert(bindings.length == xs.length)
-      Expr.Let(bindings.zip(xs).map((b, x) => (b, recurse(x))), recurse(body))
-    }
-    case Expr.App(f, xs) => {
-      Expr.App(recurse(f), xs.map(recurse))
-    }
-    case Expr.Cons(name, xs) => {
-      Expr.Cons(name, xs.map(recurse))
-    }
-    case Expr.Let(bindings, body) => {
-      Expr.Let(bindings.map((n, v) => (n, recurse(v))), recurse(body))
-    }
-    case Expr.LitInt(x) => {
-      Expr.LitInt(x)
-    }
-    case Expr.LitBool(_) => x
-    case Expr.If(i, t, e) => {
-      Expr.If(recurse(i), recurse(t), recurse(e))
-    }
-    case Expr.Prim(l, op, r) => {
-      Expr.Prim(recurse(l), op, recurse(r))
-    }
-    case Expr.Fail() => Expr.Fail()
-  }
-}
-
-def merge_abs_app(p: Program): Program = {
-  Program(p.tds, p.vds.map(vd => ValueDecl(vd.x, merge_abs_app_expr(vd.b))))
 }
 
 def expr_is_fresh(x: Expr, seen: mutable.Set[String]): Boolean = {

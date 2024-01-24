@@ -1,8 +1,7 @@
-data Nat = Z() | S(Nat)
+data List a = Nil() | Cons(a, List a)
 
-let sub = \a, b. match a with
-| Z() -> Z()
-| S(x) -> match b with 
-| Z() -> a
+data Pair a b = MkPair(a, b)
 
-let main = sub(Z(), Z())
+
+let zipWith = \a, b. match MkPair(a, b) with
+| MkPair(Nil(), Nil()) -> Nil()

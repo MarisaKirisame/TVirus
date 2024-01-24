@@ -60,12 +60,11 @@ def unsimpl(x: Program): Program = {
   Program(x.tds, x.vds.map(vd => ValueDecl(vd.x, unsimpl_expr(vd.b))))
 }
 
-def simpl(p: Program): Program = {
-  val new_p = let_simplification(refresh(merge_abs_app(p)))
-  if (size(new_p) != size(p)) {
-    println("continue simplification!")
-    simpl(new_p)
-  } else {
-    unsimpl(p)
+def simpl(program: Program): Program = {
+  val w = Watcher()
+  var p = program
+  while (w.progress_made()) {
+    p = let_simplification(refresh(merge_abs_app(p, w)), w)
   }
+  unsimpl(p)
 }
