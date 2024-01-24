@@ -32,13 +32,13 @@ def get_vd(p: Program, x: String): Option[ValueDecl] = {
 }
 
 def make_cons_map(tds: Seq[TypeDecl]): Map[String, String] = {
-  val iter: (Int, Map[String, String]) => Map[String, String] = (i, acc) => {
+  def iter(i: Int, acc: Map[String, String]): Map[String, String] = {
     if (i == tds.length) {
       acc
     } else {
       val conses = tds(i).cons
       val name = tds(i).name
-      val iter_conses: (Int, Map[String, String]) => Map[String, String] = (j, acc) => {
+      def iter_conses(j: Int, acc: Map[String, String]): Map[String, String] = {
         if (j == conses.length) {
           acc
         } else {
@@ -59,7 +59,7 @@ def collect_multiple(
     cm: Map[String, String],
     acc: Program
 ): Program = {
-  val iter: (Int, Program) => Program = (i, acc) => {
+  def iter(i: Int, acc: Program): Program = {
     if (i == es.length) {
       acc
     } else {
@@ -114,4 +114,9 @@ def dce(p: Program): Program = {
   val tds = p.tds
   val cm = make_cons_map(tds)
   collect_decls(Expr.Var("main"), p, cm, Program(Array[TypeDecl](), Array[ValueDecl]()))
+}
+
+def show(p: Program): Program = {
+  println(p)
+  p
 }
