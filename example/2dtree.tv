@@ -1,0 +1,40 @@
+data point = Point(int, int)
+
+data kdtree = Leaf(point) | Node(int, kdtree, kdtree)
+
+let filter = \f, l. match l with
+    | Nil() -> Nil()
+    | Cons(x, xs) -> if f(x) {
+                         Cons(x, filter(f, xs))
+                     } else {
+                         filter(f, xs)
+                     }
+
+let get = \axis, p. match p with
+    | Point(x, y) -> if axis == 0 { x } else { y }
+
+let notf = \x. if x { False } else { True }
+
+let nthelement = \l, k, lt. match l with
+    | Nil() -> Point(0, 0)
+    | Cons(x, Nil()) -> x
+    | Cons(x0, xs) -> let left = filter(\x. lt(x, x0), l),
+                          right = filter(\x. notf(lt(x, x0)), l) in
+                        let leftlen = length(left) in
+                          if k < leftlen {
+                              nthelement(left, k, lt)
+                          } else {
+                              nthelement(right, k - leftlen, lt)
+                          }
+
+let make2dtree = \axis, l. match l with
+    | Nil() -> Leaf(Point(0, 0))
+    | Cons(x, Nil()) -> Leaf(x)
+    | Cons(x, xs) -> let cmp = (\a, b. (get(axis, a) < get(axis, b))),
+                         mid = (length(l) / 2) in
+                       let pivot = nthelement(l, mid, cmp) in
+                         Node(axis,
+                              make2dtree((axis + 1) % 2, filter(\x. cmp(x, pivot), l)),
+                              make2dtree((axis + 1) % 2, filter(\x. notf(cmp(x, pivot)), l)))
+
+let main = make2dtree(0, Cons(Point(1, 2), Cons(Point(2, 1), Cons(Point(3, 2), Cons(Point(1, 0), Nil())))))

@@ -1,5 +1,3 @@
-data List a = Nil() | Cons(a, List a)
-
 let pascalNext = \l. match l with
     | Nil() -> Nil()
     | Cons(x, Nil()) -> Nil()
