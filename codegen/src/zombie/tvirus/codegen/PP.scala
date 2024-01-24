@@ -57,7 +57,7 @@ def pp_pat(x: Pat): Description = {
   x match
     case Pat.Wildcard => Text("_")
     case Pat.Cons(name, args) =>
-      Text(s"$name " + args.map(pp_pat(_)).mkString(" "))
+      Text(s"$name ") <> dbracket(dcsep(args.map(pp_pat(_))))
     case Pat.Var(x) => Text(x)
 }
 

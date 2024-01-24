@@ -97,7 +97,6 @@ def transform_program_raw(
     rhs: Seq[Expr],
     env: LEnv
 ): Expr = {
-  println((matched, lhs))
   if (lhs.length == 0) {
     // no more pattern
     Expr.Fail()
@@ -229,7 +228,7 @@ def unnest_match_expr(x: Expr, env: UnnestMatchEnv): Expr = {
     case Expr.Abs(x, b) => Expr.Abs(x, recurse(b))
     case Expr.Match(x, cases) => {
       val x_bind = freshName()
-      val bindings = cases.map((l, r) =>(freshName(), Expr.Abs(pat_vars(l), r)))
+      val bindings = cases.map((l, r) =>(freshName(), Expr.Abs(pat_vars(l), recurse(r))))
       Expr.Let(
         (x_bind, recurse(x)) +: bindings,
         unnest_matching(
@@ -267,9 +266,8 @@ def unnest_match(p: Program): Program = {
     p.tds,
     p.vds.map(vd => ValueDecl(vd.x, unnest_match_expr(vd.b, env)))
   )
-  println(pp(transformed))
   val ret = refresh(transformed)
-  println(pp(ret))
+  println(show(pp(ret)))
   tyck_program(ret)
   ret
 }
