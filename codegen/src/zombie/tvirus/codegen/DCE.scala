@@ -116,7 +116,7 @@ def dce(p: Program): Program = {
   collect_decls(Expr.Var("main"), p, cm, Program(Array[TypeDecl](), Array[ValueDecl]()))
 }
 
-def show(p: Program): Program = {
+def show_program(p: Program): Program = {
   println(p)
   p
 }
