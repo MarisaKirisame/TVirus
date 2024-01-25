@@ -5,12 +5,12 @@ import zombie.tvirus.prettier.{*, given}
 import org.antlr.v4.runtime.CharStreams
 
 extension (ds: Iterable[Doc])
-  def interleave(sep: Doc = "," <> Doc.Nl): Doc = ds
+  def interleave(sep: Doc = "," <> Doc.Nl, reduceFunc: (Doc, Doc) => Doc = _ <+> _): Doc = ds
     .dropRight(1)
     .map(d => d <> sep)
     .toList
     .appendedAll(ds.lastOption)
-    .reduceOption(_ <+> _)
+    .reduceOption(reduceFunc(_, _))
     .getOrElse("")
 
 def pp_type(x: Type): Doc = {
@@ -104,8 +104,8 @@ def pp_valdecl(x: ValueDecl): Doc = {
 }
 
 def pp(x: Program): Doc = {
-  x.tds.map(pp_typedecl).interleave(Doc.Nl) <> Doc.Nl <>
-    x.vds.map(pp_valdecl).interleave(Doc.Nl)
+  x.tds.map(pp_typedecl).interleave(Doc.Nl, _ <> _) <> Doc.Nl <>
+    x.vds.map(pp_valdecl).interleave(Doc.Nl, _ <> _)
 }
 
 def show(x: Doc): String = {
