@@ -103,7 +103,7 @@ def pp_valdecl(x: ValueDecl): Doc = {
 }
 
 def pp(x: Program): Doc = {
-  x.tds.map(pp_typedecl).interleave(Doc.Nl) <>
+  x.tds.map(pp_typedecl).interleave(Doc.Nl) <> Doc.Nl <>
     x.vds.map(pp_valdecl).interleave(Doc.Nl)
 }
 
