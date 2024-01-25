@@ -35,6 +35,9 @@ object Doc:
   val Nl = Newline(Some(" "))
   val Break = Newline(Some(""))
   val HardNl = Newline(None)
+  val SBreak = " " <|> Doc.Nl
+
+  def Group(d: Doc) = d <|> Flatten(d)
 
   lazy val Flatten: Doc => Doc = memoize { ds =>
     ds match
@@ -49,8 +52,10 @@ object Doc:
 
   def hcat(ds: Iterable[Doc]) = ds.reduceOption(_ <-> _).getOrElse(Text(""))
   def vcat(ds: Iterable[Doc]) = ds.reduceOption(_ <%> _).getOrElse(Text(""))
+  
+  def alignBracketed(d: Doc, o: String = "(", e: String = ")") = (o <> d <> e) <|> (o <> Doc.Nl <> Nest(2, d) <> Doc.Nl <> e)
 
-  def Group(d: Doc) = d <|> Flatten(d)
+  
 
 given Conversion[String, Doc] = Doc.Text.apply
 

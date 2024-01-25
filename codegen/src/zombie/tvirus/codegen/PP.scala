@@ -5,7 +5,10 @@ import zombie.tvirus.prettier.{*, given}
 import org.antlr.v4.runtime.CharStreams
 
 extension (ds: Iterable[Doc])
-  def interleave(sep: Doc = "," <> Doc.Nl, reduceFunc: (Doc, Doc) => Doc = _ <+> _): Doc = ds
+  def interleave(
+      sep: Doc = "," <> Doc.Nl,
+      reduceFunc: (Doc, Doc) => Doc = _ <> _
+  ): Doc = ds
     .dropRight(1)
     .map(d => d <> sep)
     .toList
@@ -17,24 +20,25 @@ def pp_type(x: Type): Doc = {
   resolve(x) match {
     case Type.Var(name, _) => name
     case Type.App(f, y) =>
-      "(" <> pp_type(f) <> "(" <> Doc.Group(
-        y.map(pp_type).interleave()
-      ) <> ")" <> ")"
+      Doc.alignBracketed(
+        pp_type(f) <> Doc.alignBracketed(Doc.Group(y.map(pp_type).interleave()))
+      )
     case Type.Func(l, r) =>
-      "(" <> Doc.Group(l.map(pp_type).interleave()) <> ")" <> "=>" <> pp_type(r)
+      Doc.alignBracketed(
+        Doc.Group(l.map(pp_type).interleave())
+      ) <> " =>" <> Doc.SBreak <> pp_type(r)
     case Type.TyCons(x) => x
     case Type.TypeScheme(xs, y) =>
       "forall " <> Doc.Group(
         xs.map(Doc.Text.apply).interleave(" ")
-      ) <> ". " <> pp_type(y)
+      ) <> "." <> Doc.SBreak <> pp_type(y)
     case Type.Prim(PrimType.INT)  => "Int"
     case Type.Prim(PrimType.BOOL) => "Bool"
   }
 }
 
-def pp_cbind(x: CBind): Doc = {
-  x.name <> "(" <> Doc.Group(x.args.map(pp_type).interleave()) <> ")"
-}
+def pp_cbind(x: CBind): Doc =
+  x.name <> Doc.alignBracketed(Doc.Group(x.args.map(pp_type).interleave()))
 
 def pp_typedecl(x: TypeDecl): Doc = {
   "data " <> x.name <> " " <> Doc.Group(
@@ -46,7 +50,7 @@ def pp_pat(x: Pat): Doc = {
   x match
     case Pat.Wildcard => "_"
     case Pat.Cons(name, args) =>
-      name <> "(" <> Doc.Group(args.map(pp_pat).interleave()) <> ")"
+      name <> Doc.alignBracketed(Doc.Group(args.map(pp_pat).interleave()))
     case Pat.Var(x) => x
 }
 
@@ -64,26 +68,39 @@ def pp_op(op: PrimOp): Doc = {
 def pp_expr(x: Expr): Doc = {
   x match
     case Expr.Abs(xs, b) =>
-      "(" <> "\\" <> Doc.Group(
-        xs.map(Doc.Text.apply).interleave()
-      ) <> "." <> (" " <|> Doc.Nl) <> pp_expr(b) <> ")"
+      Doc.alignBracketed(
+        "\\" <> Doc.Group(
+          xs.map(Doc.Text.apply).interleave()
+        ) <> "." <> Doc.SBreak <> Doc.Nest(2, pp_expr(b))
+      )
     case Expr.App(f, y) =>
-      "(" <> pp_expr(f) <> "(" <> Doc.Group(y.map(pp_expr).interleave()) <> ")" <> ")"
+      Doc.alignBracketed(
+        pp_expr(f) <> Doc.alignBracketed(
+          Doc.Group(
+            y.map(pp_expr).interleave()
+          )
+        )
+      )
     case Expr.Var(y)       => y
     case Expr.InlineVar(y) => y
     case Expr.Match(y, cases) =>
-      "(" <> "match " <> pp_expr(y) <> " with" <> Doc.Nl <> cases
-        .map((p, b) => "| " <> pp_pat(p) <> " -> " <> pp_expr(b) <> Doc.Nl)
-        .reduceOption(_ <+> _)
-        .getOrElse("") <> ")"
+      Doc.alignBracketed(
+        "match " <> pp_expr(y) <> " with" <> Doc.Nl <> Doc.Nest(
+          2,
+          cases
+            .map((p, b) => "| " <> pp_pat(p) <> " -> " <> pp_expr(b) <> Doc.Nl)
+            .reduceOption(_ <> _)
+            .getOrElse("")
+        )
+      )
     case Expr.Cons(cons, xs) =>
-      "(" <> cons <> "(" <> Doc.Group(xs.map(pp_expr).interleave()) <> ")"
+      Doc.alignBracketed(
+        cons <> Doc.alignBracketed(Doc.Group(xs.map(pp_expr).interleave()))
+      )
     case Expr.Let(binding, body) =>
       "let " <> Doc.Group(
         binding.map((n, b) => n <> " = " <> pp_expr(b)).interleave()
-      ) <> " in" <> (" " <|> Doc.Nl) <> pp_expr(
-        body
-      )
+      ) <> " in" <> Doc.SBreak <> pp_expr(body)
     case Expr.LitInt(y) => y.toString
     case Expr.Prim(l, op, r) =>
       pp_expr(l) <> " " <> pp_op(op) <> " " <> pp_expr(r)
@@ -91,11 +108,15 @@ def pp_expr(x: Expr): Doc = {
       if (x) { "True" }
       else { "False" }
     case Expr.If(i, t, e) =>
-      "if " <> pp_expr(i) <> " {" <> (" " <|> Doc.Nl) <> pp_expr(
-        t
-      ) <> (" " <|> Doc.Nl) <> "}" <> (" " <|> Doc.Nl) <>
-        "else" <> (" " <|> Doc.Nl) <> "{" <> (" " <|> Doc.Nl) <>
-        pp_expr(e) <> (" " <|> Doc.Nl) <> "}"
+      "if " <> pp_expr(i) <> " " <> Doc.alignBracketed(
+        pp_expr(t),
+        "{",
+        "}"
+      ) <> Doc.SBreak <> "else" <> Doc.SBreak <> Doc.alignBracketed(
+        pp_expr(e),
+        "{",
+        "}"
+      )
     case Expr.Fail() => "fail"
 }
 
