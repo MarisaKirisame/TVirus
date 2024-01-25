@@ -2,13 +2,14 @@ package zombie.tvirus.codegen
 
 import zombie.tvirus.parser.*
 import zombie.tvirus.prettier.{*, given}
+import org.antlr.v4.runtime.CharStreams
 
 extension (ds: Iterable[Doc])
   def interleave(sep: Doc = "," <> Doc.Nl): Doc = ds
     .dropRight(1)
     .map(d => d <> sep)
     .toList
-    .appended(ds.last)
+    .appendedAll(ds.lastOption)
     .reduceOption(_ <+> _)
     .getOrElse("")
 
@@ -65,14 +66,14 @@ def pp_expr(x: Expr): Doc = {
     case Expr.Abs(xs, b) =>
       "(" <> "\\" <> Doc.Group(
         xs.map(Doc.Text.apply).interleave()
-      ) <> " ->" <> (" " <|> Doc.Nl) <> pp_expr(b) <> ")"
+      ) <> "." <> (" " <|> Doc.Nl) <> pp_expr(b) <> ")"
     case Expr.App(f, y) =>
-      "(" <> pp_expr(f) <> "(" <> Doc.Group(y.map(pp_expr).interleave()) <> ")"
+      "(" <> pp_expr(f) <> "(" <> Doc.Group(y.map(pp_expr).interleave()) <> ")" <> ")"
     case Expr.Var(y)       => y
     case Expr.InlineVar(y) => y
     case Expr.Match(y, cases) =>
-      "(" <> "match " <> pp_expr(y) <> " with" <> (" " <|> Doc.Nl) <> cases
-        .map((p, b) => "| " <> pp_pat(p) <> " => " <> pp_expr(b) <> Doc.Nl)
+      "(" <> "match " <> pp_expr(y) <> " with" <> Doc.Nl <> cases
+        .map((p, b) => "| " <> pp_pat(p) <> " -> " <> pp_expr(b) <> Doc.Nl)
         .reduceOption(_ <+> _)
         .getOrElse("") <> ")"
     case Expr.Cons(cons, xs) =>
@@ -109,4 +110,8 @@ def pp(x: Program): Doc = {
 
 def show(x: Doc): String = {
   x.resolved(using Cost.sumOfSquared(80))
+}
+
+def testShow(x: String): String = {
+  show(pp(drive(CharStreams.fromFileName(x))))
 }
