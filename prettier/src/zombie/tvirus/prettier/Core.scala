@@ -47,8 +47,8 @@ object Doc:
       case Choice(a, b)     => Flatten(a) <|> Flatten(b)
   }
 
-  def hcat(ds: List[Doc]) = ds.reduceOption(_ <-> _).getOrElse(Text(""))
-  def vcat(ds: List[Doc]) = ds.reduceOption(_ <%> _).getOrElse(Text(""))
+  def hcat(ds: Iterable[Doc]) = ds.reduceOption(_ <-> _).getOrElse(Text(""))
+  def vcat(ds: Iterable[Doc]) = ds.reduceOption(_ <%> _).getOrElse(Text(""))
 
   def Group(d: Doc) = d <|> Flatten(d)
 

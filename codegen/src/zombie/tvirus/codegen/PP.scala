@@ -1,129 +1,112 @@
 package zombie.tvirus.codegen
 
 import zombie.tvirus.parser.*
-import zombie.tvirus.prettier.*
-import Description.*
+import zombie.tvirus.prettier.{*, given}
 
-def bracket(x: String) = {
-  "(" + x + ")"
-}
-
-def cbracket(x: String) = {
-  "{" + x + "}"
-}
-
-def dbracket(x: Description) = {
-  Text("(") <> x <> Text(")")
-}
-
-def dcbracket(x: Description) = {
-  Text("{") <> x <> Text("}")
-}
-
-def dsep(x: Seq[Description], y: Description) = {
-  x.flatMap(d => List(d, y))
+extension (ds: Iterable[Doc])
+  def interleave(sep: Doc = "," <> Doc.Nl): Doc = ds
     .dropRight(1)
-    .foldLeft(Text(""))(Concat(_, _))
-}
+    .map(d => d <> sep)
+    .toList
+    .appended(ds.last)
+    .reduceOption(_ <+> _)
+    .getOrElse("")
 
-def dcsep(x: Seq[Description]) = dsep(x, Text(", "))
-
-def dnsep(x: Seq[Description]) = dsep(x, Text("\n"))
-
-def pp_type(x: Type): Description = {
+def pp_type(x: Type): Doc = {
   resolve(x) match {
-    case Type.Var(name, _) => Text(name)
+    case Type.Var(name, _) => name
     case Type.App(f, y) =>
-      dbracket(pp_type(f) <> dbracket(dcsep(y.map(pp_type))))
+      "(" <> pp_type(f) <> "(" <> Doc.Group(
+        y.map(pp_type).interleave()
+      ) <> ")" <> ")"
     case Type.Func(l, r) =>
-      dbracket(dcsep(l.map(pp_type))) <> pp_type(r)
-    case Type.TyCons(x) => Text(x)
+      "(" <> Doc.Group(l.map(pp_type).interleave()) <> ")" <> "=>" <> pp_type(r)
+    case Type.TyCons(x) => x
     case Type.TypeScheme(xs, y) =>
-      Text(s"forall ${xs.mkString(" ")}," ) <> pp_type(y)
-    case Type.Prim(PrimType.INT)  => Text("int")
-    case Type.Prim(PrimType.BOOL) => Text("bool")
+      "forall " <> Doc.Group(
+        xs.map(Doc.Text.apply).interleave(" ")
+      ) <> ". " <> pp_type(y)
+    case Type.Prim(PrimType.INT)  => "Int"
+    case Type.Prim(PrimType.BOOL) => "Bool"
   }
 }
 
-def pp_cbind(x: CBind): Description = {
-  Text(x.name) <> Text(" ") <> dcsep(x.args.map(pp_type))
+def pp_cbind(x: CBind): Doc = {
+  x.name <> "(" <> Doc.Group(x.args.map(pp_type).interleave()) <> ")"
 }
 
-def pp_typedecl(x: TypeDecl): Description = {
-  Text(x.name) <> Text(" ") <> Text(x.xs.mkString(", ")) <> Text(" = ") <> dnsep(x.cons.map(pp_cbind))
+def pp_typedecl(x: TypeDecl): Doc = {
+  "data " <> x.name <> " " <> Doc.Group(
+    x.xs.map(Doc.Text.apply).interleave(" ")
+  ) <> " = " <> Doc.Group(x.cons.map(pp_cbind).interleave(" |" <> Doc.Nl))
 }
 
-def pp_pat(x: Pat): Description = {
+def pp_pat(x: Pat): Doc = {
   x match
-    case Pat.Wildcard => Text("_")
+    case Pat.Wildcard => "_"
     case Pat.Cons(name, args) =>
-      Text(s"$name " + args.map(pp_pat(_)).mkString(" "))
-    case Pat.Var(x) => Text(x)
+      name <> "(" <> Doc.Group(args.map(pp_pat).interleave()) <> ")"
+    case Pat.Var(x) => x
 }
 
-def pp_binding(bind: (String, Expr)): Description = {
-  Text(bind(0)) <> Text(" = ") <> pp_expr(bind(1))
-}
-
-def pp_op(op: PrimOp): Description = {
+def pp_op(op: PrimOp): Doc = {
   op match
-    case PrimOp.EQ    => Text("==")
-    case PrimOp.ADD   => Text("+")
-    case PrimOp.MINUS => Text("-")
-    case PrimOp.LT    => Text("<")
-    case PrimOp.GT    => Text(">")
-    case PrimOp.DIV   => Text("/")
-    case PrimOp.MOD   => Text("%")
+    case PrimOp.EQ    => "=="
+    case PrimOp.ADD   => "+"
+    case PrimOp.MINUS => "-"
+    case PrimOp.LT    => "<"
+    case PrimOp.GT    => ">"
+    case PrimOp.DIV   => "/"
+    case PrimOp.MOD   => "%"
 }
 
-def pp_expr(x: Expr): Description = {
+def pp_expr(x: Expr): Doc = {
   x match
     case Expr.Abs(xs, b) =>
-      dbracket(
-        Text("\\") <> Text(xs.mkString(" ")) <> Text(" -> ") <> pp_expr(b)
-      )
+      "(" <> "\\" <> Doc.Group(
+        xs.map(Doc.Text.apply).interleave()
+      ) <> " ->" <> (" " <|> Doc.Nl) <> pp_expr(b) <> ")"
     case Expr.App(f, y) =>
-      dbracket(pp_expr(f) <> dbracket(dcsep(y.map(pp_expr))))
-    case Expr.Var(y)       => Text(y)
-    case Expr.InlineVar(y) => Text(y)
+      "(" <> pp_expr(f) <> "(" <> Doc.Group(y.map(pp_expr).interleave()) <> ")"
+    case Expr.Var(y)       => y
+    case Expr.InlineVar(y) => y
     case Expr.Match(y, cases) =>
-      dbracket(
-        Text("match ") <> pp_expr(y) <> Text(" with ") <> cases
-          .map(z =>
-            Nest(
-              2,
-              pp_pat(z(0)) <> Text(" => ") <>
-                pp_expr(z(1))
-            )
-          )
-          .flatMap(z => List(z, Text("\n| ")))
-          .foldLeft(Text(""))(Concat(_, _))
-      )
+      "(" <> "match " <> pp_expr(y) <> " with" <> (" " <|> Doc.Nl) <> cases
+        .map((p, b) => "| " <> pp_pat(p) <> " => " <> pp_expr(b) <> Doc.Nl)
+        .reduceOption(_ <+> _)
+        .getOrElse("") <> ")"
     case Expr.Cons(cons, xs) =>
-      Text(cons) <> dbracket(dcsep(xs.map(pp_expr)))
+      "(" <> cons <> "(" <> Doc.Group(xs.map(pp_expr).interleave()) <> ")"
     case Expr.Let(binding, body) =>
-      Text("let ") <> dcsep(binding.map(pp_binding)) <> Text(" in ") <> pp_expr(body)
-    case Expr.LitInt(y)      => Text(y.toString)
-    case Expr.Prim(l, op, r) => pp_expr(l) <> pp_op(op) <> pp_expr(r)
+      "let " <> Doc.Group(
+        binding.map((n, b) => n <> " = " <> pp_expr(b)).interleave()
+      ) <> " in" <> (" " <|> Doc.Nl) <> pp_expr(
+        body
+      )
+    case Expr.LitInt(y) => y.toString
+    case Expr.Prim(l, op, r) =>
+      pp_expr(l) <> " " <> pp_op(op) <> " " <> pp_expr(r)
     case Expr.LitBool(x) =>
-      if (x) { Text("True") }
-      else { Text("False") }
+      if (x) { "True" }
+      else { "False" }
     case Expr.If(i, t, e) =>
-      Text("if ") <> pp_expr(i) <> dcbracket(pp_expr(t)) <> Text(
-        "else"
-      ) <> dcbracket(pp_expr(e))
-    case Expr.Fail() => Text("fail")
+      "if " <> pp_expr(i) <> " {" <> (" " <|> Doc.Nl) <> pp_expr(
+        t
+      ) <> (" " <|> Doc.Nl) <> "}" <> (" " <|> Doc.Nl) <>
+        "else" <> (" " <|> Doc.Nl) <> "{" <> (" " <|> Doc.Nl) <>
+        pp_expr(e) <> (" " <|> Doc.Nl) <> "}"
+    case Expr.Fail() => "fail"
 }
 
-def pp_valdecl(x: ValueDecl): Description = {
-  Text(x.x) <> Text(" = ") <> pp_expr(x.b)
+def pp_valdecl(x: ValueDecl): Doc = {
+  "let " <> x.x <> " =" <> (" " <|> Doc.Nl) <> pp_expr(x.b)
 }
 
-def pp(x: Program): Description = {
-  dnsep(x.tds.map(pp_typedecl)) <>
-  dnsep(x.vds.map(pp_valdecl))
+def pp(x: Program): Doc = {
+  x.tds.map(pp_typedecl).interleave(Doc.Nl) <>
+    x.vds.map(pp_valdecl).interleave(Doc.Nl)
 }
 
-def show(x: Description): String = {
-  layout(best(80, x))
+def show(x: Doc): String = {
+  x.resolved(using Cost.sumOfSquared(80))
 }

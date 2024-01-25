@@ -30,6 +30,11 @@ enum Value:
 
   override def toString = toExpr
 
+def bracket(s: String) = "(" ++ s ++ ")"
+
+def cbracket(x: String) = "{" + x + "}"
+
+
 trait BackEnd {
   def type_wrapper(x: String): String
   def val_wrapper_raw(t: String, v: String): String
