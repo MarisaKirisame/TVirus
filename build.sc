@@ -20,6 +20,15 @@ object codegen extends CommonModule {
 }
 
 object prettier extends CommonModule {
+  def ivyDeps = Agg(
+    ivy"io.higherkindness::droste-core:0.9.0",
+    ivy"org.typelevel::shapeless3-deriving:3.4.1",
+    ivy"com.lihaoyi::pprint:0.8.1"
+  )
+
+  object test extends ScalaTests with TestModule.Utest {
+    def ivyDeps = Agg(ivy"com.lihaoyi::utest:0.8.2")
+  }
 }
 
 object cli extends CommonModule {
