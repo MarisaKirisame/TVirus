@@ -72,6 +72,8 @@ def pp_op(op: PrimOp): Description = {
     case PrimOp.MINUS => Text("-")
     case PrimOp.LT    => Text("<")
     case PrimOp.GT    => Text(">")
+    case PrimOp.LE    => Text("<=")
+    case PrimOp.GE    => Text(">=")
     case PrimOp.DIV   => Text("/")
     case PrimOp.MOD   => Text("%")
 }
