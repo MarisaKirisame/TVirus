@@ -4,11 +4,26 @@
 val allTVirusFiles = os.walk(os.pwd / "example").filter(_.ext == "tv")
 
 // os.proc.call will throw SubprocessException if non-zero exit code is returned
-allTVirusFiles.foreach(path => {
-    println(s"============================== Compiling $path ==============================")
-    try {
+if (
+  allTVirusFiles
+    .map(path => {
+      println(
+        s"============================== Compiling $path =============================="
+      )
+      try {
         os.proc("mill", "cli", path).call()
-    } catch {
-        case e: os.SubprocessException => println(s"failed for $path")
-    }
-})
+        true
+      } catch {
+        case e: os.SubprocessException => {
+          println(s"failed for $path")
+          false
+        }
+      }
+    })
+    .reduce((a, b) => a && b)
+) {
+  println("all compilation attempts succeeded")
+} else {
+  println("failed")
+  throw Exception()
+}
