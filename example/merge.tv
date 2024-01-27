@@ -1,5 +1,3 @@
-data Pair a b = P(a, b)
-
 let merge = \l. match l with
     | Nil() -> Nil()
     | Cons(x, Nil()) -> Nil()

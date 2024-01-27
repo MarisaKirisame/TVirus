@@ -1,13 +1,11 @@
-data Pair a b = Pairc(a, b)
-
 let listdivide = \l, i.
     if (i == 0) {
-        Pairc(Nil(), l)
+        P(Nil(), l)
     } else {
         match l with
             | Cons(x, xs) -> (match listdivide(xs, i - 1) with
-                                | Pairc(a, b) -> Pairc(Cons(x, a), b))
-            | Nil() -> Pairc(Nil(), Nil())
+                                | P(a, b) -> P(Cons(x, a), b))
+            | Nil() -> P(Nil(), Nil())
     }
 
 let merge = \a, b. match a with
@@ -26,7 +24,7 @@ let reducehalf = \f, l. match l with
     | Nil() -> Nil()
     | Cons(x, Nil()) -> x
     | Cons(x, xs) -> match listdivide(l, length(l) / 2) with
-                        | Pairc(a, b) -> f(reducehalf(f, a), reducehalf(f, b))
+                        | P(a, b) -> f(reducehalf(f, a), reducehalf(f, b))
 
 let mergesort = \l. reducehalf(merge, map(list1, l))
 

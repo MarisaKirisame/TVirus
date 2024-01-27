@@ -1,7 +1,4 @@
 data List a = Nil() | Cons(a, List a)
 
-data Pair a b = MkPair(a, b)
-
-
-let zipWith = \a, b. match MkPair(a, b) with
-| MkPair(Nil(), Nil()) -> Nil()
+let zipWith = \a, b. match P(a, b) with
+| P(Nil(), Nil()) -> Nil()

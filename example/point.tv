@@ -1,6 +1,0 @@
-data point = Point(int, int)
-
-let get = \axis, p. match p with
-    | Point(x, y) -> if axis == 0 { x } else { y }
-
-let main = get(0, Point(1, 2))
