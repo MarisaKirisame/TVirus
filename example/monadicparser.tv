@@ -1,0 +1,88 @@
+data Parser a = Ps(STRING -> List(Pair a STRING))
+
+let parse = \psr, inp. match psr with
+    | Ps(p) -> p(inp)
+
+let result = \v. Ps(\inp. Cons(P(v, inp), Nil()))
+let bind = \p, f. Ps(\inp.
+    match parse(p, inp) with
+    | Nil() -> Nil()
+    | Cons(P(v, out), _) -> parse(f(v), out))
+
+let zero = Ps(\inp. Nil())
+let item = Ps(\inp. if(STRLEN(inp) == 0) { Nil() } else { Cons(P(STRHD(inp), STRTL(inp)), Nil())) })
+
+let sat = \pred. bind(item, (\x. if (pred(x)) { result x } else { zero }))
+
+let char = \c. sat(\x. x == c)
+
+let string = \s.
+    let x = STRHD(s)
+    in let xs = STRTL(s)
+       in bind(char(x), \v1.
+          bind(string(xs), \v2.
+          result(STRCONS(x, xs))))
+
+let plus = \psr1, psr2. Ps(\inp.
+    let r = parse(psr1, inp)
+    in match r with
+       | Nil() -> parse(psr2, inp)
+       | s -> s)
+
+let isSpace = \c. (c == ' ') || (c == '\n') || (c == '\t')
+let isLower = \c. ('a' <= c) && (c <= 'z')
+let isUpper = \c. ('A' <= c) && (c <= 'Z')
+let isAlpha = \c. isLower(c) || isUpper(c)
+let isDigit = \c. ('0' <= c) && (c <= '9')
+
+let many = \psr. plus(many1(p), result(Nil()))
+let many1 = \psr.
+    bind(p, \x.
+    bind(many(p), \xs.
+    result(Cons(x, xs))))
+
+let token = \p.
+    bind(many(sat(isSpace)), \x.
+    bind(p, \v.
+    bind(many(sat(isSpace)), \y.
+    result(v))))
+
+let identifier = token(
+    bind(sat(isLower), \x.
+    bind(many(sat(\c. isAlpha c || isDigit c)), \xs.
+    result(Cons(x, xs))))
+)
+
+data Expr = I() | K() | S() | App(Expr, Expr)
+data OpExpr = Ept() | OpApply(Expr, OpExpr)
+
+let accum = \e, ope. match ope with
+    | Ept() -> e
+    | OpApply(g, rem) = accum(App(e, g), rem)
+
+let parserI = bind(token(char('I')), \x. result I())
+let parserK = bind(token(char('K')), \x. result K())
+let parserS = bind(token(char('S')), \x. result S())
+
+let parserApply = plus(plus(plus(
+    bind(token(char('(')), \lp
+    bind(token(parserExpr), \e.
+    bind(token(char(')')), \rp.
+    result e)))
+)))
+
+let parserOpApply = plus(
+    bind(token(parserApply), \a.
+    bind(token(parserOpApply), \opa.
+    result(OpApply(a, opa)))),
+    result(Ept())
+)
+
+let parserExpr =
+    bind(parserApply, \a.
+    bind(parserOpApply, \opa.
+    match opa with
+    | Ept() -> result(a)
+    | OpApply(x, xs) -> result(accum(a, opa))))
+
+let main = \x. parserExpr("S (K I I) (I S) I")

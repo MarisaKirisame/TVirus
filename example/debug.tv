@@ -1,13 +1,4 @@
 data List a = Nil() | Cons(a, List a)
 
-let map = \f, l. match l with
-    | Nil() -> Nil()
-    | Cons(x, xs) -> Cons(f(x), map(f, xs))
-
-let reverseAppend = \l1, l2. match l1 with
-    | Nil() -> l2
-    | Cons(a, l) -> reverseAppend(l, Cons(a, l2))
-
-let reverse = \l. reverseAppend(l, Nil())
-
-let main = let x = Cons(1, Nil()), y = reverse(x), z = map((\i. i + 1), y) in z
+let zipWith = \a, b. match P(a, b) with
+| P(Nil(), Nil()) -> Nil()

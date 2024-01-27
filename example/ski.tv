@@ -4,8 +4,6 @@ data Expr
     | S()
     | App(Expr, Expr)
 
-data Pair a b = P(a, b)
-
 let apply = \ex, x. match P(ex, x) with
     | P(I(), x) -> x
     | P(App(K(), x), y) -> x

@@ -64,6 +64,8 @@ def pp_op(op: PrimOp): Doc = {
     case PrimOp.GT    => ">"
     case PrimOp.DIV   => "/"
     case PrimOp.MOD   => "%"
+    case PrimOp.LE    => "<="
+    case PrimOp.GE    => ">="
 }
 
 def pp_expr(x: Expr): Doc = {

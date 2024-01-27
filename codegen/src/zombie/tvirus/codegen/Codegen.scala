@@ -141,13 +141,18 @@ else { NoZombieBackEnd() }
 
 class CodeGenEnv(p: Program) {
   val tyck: TyckEnv = tyck_program(p)
-  val constructor_name_map: mutable.Map[String, Int] =
+  val constructor_adt_name_map: mutable.Map[String, String] = mutable.Map[String, String]()
+  p.tds.map(td => td.cons.map(cb => constructor_adt_name_map.put(cb.name, td.name)))
+  val constructor_position_map: mutable.Map[String, Int] =
     mutable.Map[String, Int]()
   p.tds.map(td =>
     td.cons.zipWithIndex.map((cb, idx) =>
-      constructor_name_map.put(cb.name, idx)
+      constructor_position_map.put(cb.name, idx)
     )
   )
+  val adt_constructor_count_map: mutable.Map[String, Int] = mutable.Map[String, Int]()
+  p.tds.map(td =>
+    adt_constructor_count_map.put(td.name, td.cons.length))
   val global_funcs: Set[String] = {
     p.vds.map(vd => vd.x).toSet
   }
@@ -203,7 +208,7 @@ def codegen_case(name: String, c: (Pat, Expr), env: CodeGenEnv): Value = {
   c(0) match {
     case Pat.Wildcard => codegen_expr(c(1), env)
     case Pat.Cons(cons_name, xs) => {
-      val idx = env.constructor_name_map.get(cons_name).get
+      val idx = env.constructor_position_map.get(cons_name).get
       Value.Stmts(s"""if (${name}.var.index() == ${idx}) { 
           ${xs
           .map(simple_pat_to_name)
@@ -254,9 +259,11 @@ def codegen_expr(x: Expr, env: CodeGenEnv): Value = {
       val matched_type = env.tyck.expr_map(matched)
       val transformed_cases = cases
         .map(x => (to_simp_cons(x(0)), x(1)))
-        .sortBy(x => env.constructor_name_map(x(0)(0)))
+        .sortBy(x => env.constructor_position_map(x(0)(0)))
+      val adt_name = env.constructor_adt_name_map(to_simp_cons(cases(0)(0))(0))
+      assert(env.adt_constructor_count_map(adt_name) == cases.length)
       transformed_cases.zipWithIndex.map((x, i) =>
-        assert(env.constructor_name_map(x(0)(0)) == i)
+        assert(env.constructor_position_map(x(0)(0)) == i)
       )
       Value.Expr(
         s"${get_adt_name(matched_type)}Match(" +
