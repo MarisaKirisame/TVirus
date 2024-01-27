@@ -17,9 +17,10 @@ val results = allTVirusFiles
 val textresult = results.map((p, succ) => {
       val ps = p.toString().split("/")
       val pc = ps(ps.length - 1)
+      val pn = pc.slice(0, pc.length - 3)
       val s = if (succ) { "succeeded" }
       else { "failed" }
-      s"$pc: $s\n"
+      s"$pn: $s\n"
     })
     .reduce((a, b) => a ++ b)
 print(textresult)
