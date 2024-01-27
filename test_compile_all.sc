@@ -18,12 +18,16 @@ val textresult = results.map((p, succ) => {
       val ps = p.toString().split("/")
       val pc = ps(ps.length - 1)
       val pn = pc.slice(0, pc.length - 3)
-      val s = if (succ) { "succeeded" }
-      else { "failed" }
-      s"$pn: $s\n"
+      val s = if (succ) { "✅" }
+      else { "❌" }
+      val sep = " " * (20 - pn.length)
+      s"$pn:$sep$s\n"
     })
     .reduce((a, b) => a ++ b)
+val tested = results.length
+val passed = results.map((p, r) => if (r) { 1 } else { 0 }).reduce((a, b) => a + b)
 print(textresult)
+println(s"passed $passed/$tested")
 
 if (!results.map((p, suc) => suc).reduce((a, b) => a && b)) {
   throw Exception()
