@@ -41,8 +41,6 @@ object Main {
       |> simpl
       |> cps
       |> reify_global_funcs
-      |> merge_abs_app
-      |> let_simplification
       |> simpl
       |> refresh
       |> dce
