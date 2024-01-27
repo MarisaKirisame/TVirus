@@ -3,7 +3,11 @@ package zombie.tvirus.codegen
 import zombie.tvirus.parser.*
 
 def member[T](x: T, s: Seq[T]): Boolean = {
-  s.map(y => x == y).reduce((a, b) => (a || b))
+  if (s.length == 0) {
+    false
+  } else {
+    s.map(y => x == y).reduce((a, b) => (a || b))
+  }
 }
 
 def function_type_p(t: Type): Option[Seq[String]] = {

@@ -1,20 +1,16 @@
-data List a = Nil() | Cons(a, List a)
-
-data Pair a b = Pr(a, b)
-
 data Parser a = Ps(STRING -> List(Pair a STRING))
 
 let parse = \psr, inp. match psr with
     | Ps(p) -> p(inp)
 
-let result = \v. Ps(\inp. Cons(Pr(v, inp), Nil()))
+let result = \v. Ps(\inp. Cons(P(v, inp), Nil()))
 let bind = \p, f. Ps(\inp.
     match parse(p, inp) with
     | Nil() -> Nil()
-    | Cons(Pr(v, out), _) -> parse(f(v), out))
+    | Cons(P(v, out), _) -> parse(f(v), out))
 
 let zero = Ps(\inp. Nil())
-let item = Ps(\inp. if(STRLEN(inp) == 0) { Nil() } else { Cons(Pr(STRHD(inp), STRTL(inp)), Nil())) })
+let item = Ps(\inp. if(STRLEN(inp) == 0) { Nil() } else { Cons(P(STRHD(inp), STRTL(inp)), Nil())) })
 
 let sat = \pred. bind(item, (\x. if (pred(x)) { result x } else { zero }))
 

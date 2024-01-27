@@ -4,13 +4,11 @@ data Expr
     | S()
     | App(Expr, Expr)
 
-data Pair a b = Pr(a, b)
-
 let apply = \ex, x. match P(ex, x) with
-    | Pr(I(), x) -> x
-    | Pr(App(K(), x), y) -> x
-    | Pr(App(App(S(), x), y), z) -> eval(App(App(x, z), App(y, z)))
-    | Pr(x, y) -> App(x, y)
+    | P(I(), x) -> x
+    | P(App(K(), x), y) -> x
+    | P(App(App(S(), x), y), z) -> eval(App(App(x, z), App(y, z)))
+    | P(x, y) -> App(x, y)
 
 let eval = \ex. match ex with
     | App(a, b) -> apply(eval(a), eval(b))
