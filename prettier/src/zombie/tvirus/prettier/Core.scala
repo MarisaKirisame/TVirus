@@ -52,10 +52,12 @@ object Doc:
 
   def hcat(ds: Iterable[Doc]) = ds.reduceOption(_ <-> _).getOrElse(Text(""))
   def vcat(ds: Iterable[Doc]) = ds.reduceOption(_ <%> _).getOrElse(Text(""))
-  
-  def alignBracketed(d: Doc, o: String = "(", e: String = ")") = (o <> d <> e) <|> (o <> Doc.Nl <> Nest(2, d) <> Doc.Nl <> e)
 
-  
+  def bracketed(d: Doc, o: String = "(", e: String = ")", space: Boolean = false) = {
+    val spc = if (space) { " " } else { "" }
+    (o <> spc <> d <> spc <> e) <|> (o <> Nest(2, Doc.Nl <> d) <> Doc.Nl <> e)
+  }
+    
 
 given Conversion[String, Doc] = Doc.Text.apply
 
