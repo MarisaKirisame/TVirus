@@ -155,8 +155,13 @@ def tyck_expr(x: Expr, env: TyckEnv): Type = {
       env.var_map.get(v) match {
         case Some(t) => instantiate(t)
         case None => {
-          println(s"not in scope: ${v}")
-          assert(false)
+          if (env.unvisited.contains(v)) {
+            tyck_vd(env.unvisited(v), env)
+            recurse(x)
+          } else {
+            println(s"not in scope: ${v}")
+            assert(false)
+          }
         }
       }
     }
