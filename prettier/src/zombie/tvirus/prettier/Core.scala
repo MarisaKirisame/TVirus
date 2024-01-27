@@ -26,7 +26,9 @@ def best(width: Int, d: Description): Document = {
       description match
         case Nil() => helper(current, tail)
         case Line() => DLine(indent, ()=>helper(current, tail))
-        case Text(text) => DText(text, ()=>helper(current + text.length, tail))
+        case Text(text) => {
+          DText(text, ()=>helper(current + text.length, tail))
+        }
         case Concat(left, right) => helper(current, (indent, left)::(indent, right)::tail)
         case Nest(i, description) => helper(current, (indent + i, description)::tail)
         case Union(left, right) =>
@@ -55,5 +57,7 @@ def best(width: Int, d: Description): Document = {
 
 def layout(d: Document): String = d match
   case DNil() => ""
-  case DText(text, _cont) => text ++ layout(d.cont)
+  case DText(text, _cont) => {
+    text ++ layout(d.cont)
+  }
   case DLine(indent, _cont) => "\n" ++ " " * indent + layout(d.cont)

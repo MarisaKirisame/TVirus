@@ -1,6 +1,7 @@
-let reducehalf = \f, l. match l with
-    | Nil() -> Nil()
-    | Cons(x, Nil()) -> x
-    | Cons(x, xs) -> x
+data List a = Nil() | Cons(a, List a)
 
-let main = 1
+data Pair a b = MkPair(a, b)
+
+
+let zipWith = \a, b. match MkPair(a, b) with
+| MkPair(Nil(), Nil()) -> Nil()

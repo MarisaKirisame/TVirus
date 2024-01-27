@@ -51,8 +51,8 @@ def unify(l_raw: Type, r_raw: Type, err_msg: => String): Unit = {
       case (_, r @ Type.Var(_, None)) => r.ty = Some(l)
       case (Type.Func(ll, lr), Type.Func(rl, rr)) => {
         if (ll.length != rl.length) {
-          println(pp_type(l))
-          println(pp_type(r))
+          println(show(pp_type(l)))
+          println(show(pp_type(r)))
           println(err_msg)
           assert(ll.length == rl.length)
         } else {
@@ -72,8 +72,8 @@ def unify(l_raw: Type, r_raw: Type, err_msg: => String): Unit = {
         assert(l == r)
       }
       case _ => {
-        println(pp_type(l))
-        println(pp_type(r))
+        println(show(pp_type(l)))
+        println(show(pp_type(r)))
         assert(false)
       }
   }
@@ -177,7 +177,7 @@ def tyck_expr(x: Expr, env: TyckEnv): Type = {
     }
     case Expr.App(f, xs) => {
       val out_ty = fresh_tv()
-      unify(recurse(f), Type.Func(xs.map(recurse), out_ty), "{pp_expr(x)}") // TODO
+      unify(recurse(f), Type.Func(xs.map(recurse), out_ty), show(pp_expr(x)))
       out_ty
     }
     case Expr.Cons(f, xs) => {

@@ -97,10 +97,8 @@ def transform_program_raw(
     rhs: Seq[Expr],
     env: LEnv
 ): Expr = {
-  println((matched, lhs))
   if (lhs.length == 0) {
     // no more pattern
-    assert(false)
     Expr.Fail()
   } else if (matched.length == 0) {
     // nothing else to match on
@@ -155,34 +153,43 @@ def transform_program(
     _rhs: Seq[Expr],
     env: LEnv
 ): Expr = {
-  assert(_lhs.forall(pats => pats.length == matched.length))
-  assert(_lhs.length == _rhs.length)
-  val simplfied = _lhs
-    .zip(_rhs)
-    .foldLeft(Seq[(Seq[Pat], Expr)]())((l, r) =>
-      if (covered_by(r(0), l.map(_(0)))) { l }
-      else { l ++ Seq(r) }
-    )
-    .map((l, r) => (l, Expr.Abs(l.flatMap(pat_vars), r)))
-  val lhs = simplfied.map(_(0))
-  val rhs = simplfied.map(_(1))
-  env.mem.get(lhs) match {
-    case None => {
-      val v = freshName()
-      val funcs = rhs.map(_ => freshName())
-      val applied = lhs
-        .zip(funcs)
-        .map((l, r) =>
-          Expr.App(Expr.InlineVar(r), l.flatMap(pat_vars).map(Expr.InlineVar))
-        )
-      val inserted =
-        Expr.Abs(matched ++ funcs, transform_program_raw(matched, lhs, applied, env))
-      env.mem.put(lhs, v)
-      env.ll = env.ll :+ (v, inserted)
-      Expr.App(Expr.Var(v), matched.map(Expr.InlineVar) ++ rhs)
-    }
-    case Some(name) => {
-      Expr.App(Expr.Var(name), matched.map(Expr.InlineVar) ++ rhs)
+  if (_lhs.length == 0) {
+    // we cant put empty clauses in the memo table, as the table assume matched length is the same (as clause length bound matched length)
+    Expr.Fail()
+  } else {
+    assert(_lhs.forall(pats => pats.length == matched.length))
+    assert(_lhs.length == _rhs.length)
+    val simplified = _lhs
+      .zip(_rhs)
+      .foldLeft(Seq[(Seq[Pat], Expr)]())((l, r) =>
+        if (covered_by(r(0), l.map(_(0)))) { l }
+        else { l ++ Seq(r) }
+      )
+      .map((l, r) => (l, Expr.Abs(l.flatMap(pat_vars), r)))
+    val lhs = simplified.map(_(0))
+    val rhs = simplified.map(_(1))
+    assert(lhs.forall(pats => pats.length == matched.length))
+    env.mem.get(lhs) match {
+      case None => {
+        val v = freshName()
+        val funcs = rhs.map(_ => freshName())
+        val applied = lhs
+          .zip(funcs)
+          .map((l, r) =>
+            Expr.App(Expr.InlineVar(r), l.flatMap(pat_vars).map(Expr.InlineVar))
+          )
+        val inserted =
+          Expr.Abs(
+            matched ++ funcs,
+            transform_program_raw(matched, lhs, applied, env)
+          )
+        env.mem.put(lhs, v)
+        env.ll = env.ll :+ (v, inserted)
+        Expr.App(Expr.Var(v), matched.map(Expr.InlineVar) ++ rhs)
+      }
+      case Some(name) => {
+        Expr.App(Expr.Var(name), matched.map(Expr.InlineVar) ++ rhs)
+      }
     }
   }
 }
@@ -230,7 +237,8 @@ def unnest_match_expr(x: Expr, env: UnnestMatchEnv): Expr = {
     case Expr.Abs(x, b) => Expr.Abs(x, recurse(b))
     case Expr.Match(x, cases) => {
       val x_bind = freshName()
-      val bindings = cases.map((l, r) =>(freshName(), Expr.Abs(pat_vars(l), r)))
+      val bindings =
+        cases.map((l, r) => (freshName(), Expr.Abs(pat_vars(l), recurse(r))))
       Expr.Let(
         (x_bind, recurse(x)) +: bindings,
         unnest_matching(
@@ -240,7 +248,8 @@ def unnest_match_expr(x: Expr, env: UnnestMatchEnv): Expr = {
             .map((l, r) =>
               (
                 l(0),
-                Expr.App(Expr.InlineVar(r(0)), pat_vars(l(0)).map(Expr.InlineVar))
+                Expr
+                  .App(Expr.InlineVar(r(0)), pat_vars(l(0)).map(Expr.InlineVar))
               )
             ),
           env
@@ -268,9 +277,7 @@ def unnest_match(p: Program): Program = {
     p.tds,
     p.vds.map(vd => ValueDecl(vd.x, unnest_match_expr(vd.b, env)))
   )
-  println(pp(transformed))
   val ret = refresh(transformed)
-  println(pp(ret))
-  tyck_program(ret)
+  println(show(pp(ret)))
   ret
 }

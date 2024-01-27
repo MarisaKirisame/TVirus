@@ -2,11 +2,11 @@ data Pair a b = P(a, b)
 
 data LIST a = NIL() | CONS(a, LIST a)
 
-def lappd = \l1 l2. match l1 with
+let lappd = \l1 l2. match l1 with
     | NIL() -> l2
     | CONS(x, xs) -> CONS(x, lappd(xs, l2))
 
-def strrpt = \s, n.
+let strrpt = \s, n.
     if (n == 0) { "" } else { STRAPPEND(s, strrpt(s, n - 1)) }
 
 data Descr
@@ -61,11 +61,11 @@ let chsbtr = \spc, ots, l, r.
             | DText(s, d) -> chsbtr(spc - STRLEN(s), \c. outside(DText(s, c)), getcont(l), r)
     }
 
-def best = \w, d. helper(w, d, 0, CONS(P(0, d), NIL()))
+let best = \w, d. helper(w, d, 0, CONS(P(0, d), NIL()))
 
-def layout = \d. match d with
+let layout = \d. match d with
     | DNil() -> ""
     | DText(s, c) -> lappd(s, layout(getcont(d)))
     | DLine(idt, c) -> STRAPPEND(STRAPPEND("\n", strrpt(" ", idt)), layout(getcont(d)))
 
-def main = \d. layout(DText(4, "abcdefg"))
+let main = \d. layout(DText(4, "abcletg"))

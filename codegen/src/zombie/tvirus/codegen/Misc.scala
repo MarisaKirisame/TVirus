@@ -4,6 +4,20 @@ import java.io.FileWriter
 import java.io.IOException
 import zombie.tvirus.parser.*
 import collection.mutable
+import zombie.tvirus.prettier.*
+
+class Watcher {
+  var progress = true
+  def make_progress() = {
+    progress = true
+  }
+
+  def progress_made() = {
+    val ret = progress
+    progress = false
+    ret
+  }
+}
 
 def hoas(f: (Expr => Expr)): Expr = {
   val x_ = freshName()
@@ -138,44 +152,6 @@ def refresh(p: Program): Program = {
   Program(p.tds, p.vds.map(vd => ValueDecl(vd.x, refresh_expr(vd.b, Map()))))
 }
 
-def merge_abs_app_expr(x: Expr): Expr = {
-  val recurse = x => merge_abs_app_expr(x)
-  x match {
-    case Expr.Var(_) | Expr.InlineVar(_) => x
-    case Expr.Abs(bindings, body)        => Expr.Abs(bindings, recurse(body))
-    case Expr.Match(x, cases) =>
-      Expr.Match(x, cases.map((lhs, rhs) => (lhs, recurse(rhs))))
-    case Expr.App(Expr.Abs(bindings, body), xs) => {
-      assert(bindings.length == xs.length)
-      Expr.Let(bindings.zip(xs).map((b, x) => (b, recurse(x))), recurse(body))
-    }
-    case Expr.App(f, xs) => {
-      Expr.App(recurse(f), xs.map(recurse))
-    }
-    case Expr.Cons(name, xs) => {
-      Expr.Cons(name, xs.map(recurse))
-    }
-    case Expr.Let(bindings, body) => {
-      Expr.Let(bindings.map((n, v) => (n, recurse(v))), recurse(body))
-    }
-    case Expr.LitInt(x) => {
-      Expr.LitInt(x)
-    }
-    case Expr.LitBool(_) => x
-    case Expr.If(i, t, e) => {
-      Expr.If(recurse(i), recurse(t), recurse(e))
-    }
-    case Expr.Prim(l, op, r) => {
-      Expr.Prim(recurse(l), op, recurse(r))
-    }
-    case Expr.Fail() => Expr.Fail()
-  }
-}
-
-def merge_abs_app(p: Program): Program = {
-  Program(p.tds, p.vds.map(vd => ValueDecl(vd.x, merge_abs_app_expr(vd.b))))
-}
-
 def expr_is_fresh(x: Expr, seen: mutable.Set[String]): Boolean = {
   val recurse = x => expr_is_fresh(x, seen)
   x match {
@@ -221,26 +197,24 @@ def is_fresh(p: Program): Boolean = {
 }
 
 @main def main(): Unit = {
-  //val program = "example/mod2.tv"
+  // val program = "example/mod2.tv"
   // val program = "example/list.tv"
   // val program = "example/merge.tv"
   // val program = "example/taba.tv"
   // val program = "example/pascal.tv"
   // val program = "example/boolean.tv"
-  //val program = "example/rbt.tv"
-  //val program = "example/mergesort.tv"
+  // val program = "example/rbt.tv"
+  // val program = "example/mergesort.tv"
   val program = "example/debug.tv"
   var x = reify_global_funcs(refresh(cons(drive(CharStreams.fromFileName(program)))))
-  println(pp(x))
+  println(show(pp(x)))
   x = unnest_match(x)
   println("unnest ok!!!")
-  println(pp(x))
+  println(show(pp(x)))
   x = simpl(x)
   // x = simpl(cps(simpl(unnest_match(x))))
   println("simplification done!!!")
-  println(pp(x))
-  println(size(x))
-  return
+  println(show(pp(x)))
   val tyck = TyckEnv(x)
   // for ((k, v) <- tyck.var_map) {
   //  println((k, pp_type(v)))
