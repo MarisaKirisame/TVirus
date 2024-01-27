@@ -4,8 +4,8 @@
 val allTVirusFiles = os.walk(os.pwd / "example").filter(_.ext == "tv")
 
 // os.proc.call will throw SubprocessException if non-zero exit code is returned
-print(
-  allTVirusFiles
+
+val results = allTVirusFiles
     .map(p => {
       try {
         os.proc("mill", "cli", p).call()
@@ -14,7 +14,7 @@ print(
         case e: os.SubprocessException => p -> false
       }
     })
-    .map((p, succ) => {
+val textresult = results.map((p, succ) => {
       val ps = p.toString().split("/")
       val pc = ps(ps.length - 1)
       val s = if (succ) { "succeeded" }
@@ -22,4 +22,8 @@ print(
       s"$pc: $s\n"
     })
     .reduce((a, b) => a ++ b)
-)
+print(textresult)
+
+if (!results.map((p, suc) => suc).reduce((a, b) => a && b)) {
+  throw Exception()
+}
