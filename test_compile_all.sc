@@ -26,8 +26,9 @@ val textresult = results.map((p, succ) => {
     .reduce((a, b) => a ++ b)
 val tested = results.length
 val passed = results.map((p, r) => if (r) { 1 } else { 0 }).reduce((a, b) => a + b)
+val percentage = passed * 100 / tested
 print(textresult)
-println(s"passed $passed/$tested")
+println(s"passed $passed/$tested = $percentage%")
 
 if (!results.map((p, suc) => suc).reduce((a, b) => a && b)) {
   throw Exception()
