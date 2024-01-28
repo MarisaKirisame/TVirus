@@ -1,0 +1,115 @@
+data Parser a = Ps(STRING -> List(Pair a STRING))
+
+let parse = \psr, inp. match psr with
+    | Ps(p) -> p(inp)
+
+let result = \v. Ps(\inp. Cons(P(v, inp), Nil()))
+let bind = \p, f. Ps(\inp.
+    match parse(p, inp) with
+    | Nil() -> Nil()
+    | Cons(P(v, out), _) -> parse(f(v), out))
+
+let zero = Ps(\inp. Nil())
+let item = Ps(\inp. if(STRLEN(inp) == 0) { Nil() } else { Cons(P(STRHD(inp), STRTL(inp)), Nil())) })
+
+let sat = \pred. bind(item, (\x. if (pred(x)) { result x } else { zero }))
+
+let char = \c. sat(\x. x == c)
+
+let string = \s.
+    let x = STRHD(s)
+    in let xs = STRTL(s)
+       in bind(char(x), \v1.
+          bind(string(xs), \v2.
+          result(STRCONS(x, xs))))
+
+let plus = \psr1, psr2. Ps(\inp.
+    let r = parse(psr1, inp)
+    in match r with
+       | Nil() -> parse(psr2, inp)
+       | s -> s)
+
+let isSpace = \c. (c == ' ') || (c == '\n') || (c == '\t')
+let isLower = \c. ('a' <= c) && (c <= 'z')
+let isUpper = \c. ('A' <= c) && (c <= 'Z')
+let isAlpha = \c. isLower(c) || isUpper(c)
+let isDigit = \c. ('0' <= c) && (c <= '9')
+
+let many = \psr. plus(many1(p), result(Nil()))
+let many1 = \psr.
+    bind(p, \x.
+    bind(many(p), \xs.
+    result(Cons(x, xs))))
+
+let token = \p.
+    bind(many(sat(isSpace)), \x.
+    bind(p, \v.
+    bind(many(sat(isSpace)), \y.
+    result(v))))
+
+let identifier = token(
+    bind(sat(isLower), \x.
+    bind(many(sat(\c. isAlpha c || isDigit c)), \xs.
+    result(Cons(x, xs))))
+)
+
+data DeBruijn
+    = Var(INT)
+    | Lambda(DeBruijn)
+    | Apply(DeBruijn, DeBruijn)
+
+data OpDeBruijn
+    = Ept()
+    | OpApply(DeBruijn, DeBruijn)
+
+let accum = \t, d. match d with
+    | Ept() -> t
+    | OpApply(s, rem) = accum(Apply(t, s), rem)
+
+let pINT =
+    bind(token(many1(sat(isDigit))), \ns ->
+    result(Var(foldl((\num, d. -> 10 * num + d), 0, map(DigitToInt, ns)))))
+
+let pLambda =
+    bind(token(char('L')), \x.
+    bind(token(char('.')), \y.
+    bind(pDeBruijn, \e.
+    result(Lambda(e)))))
+
+let pApply =
+    plus(plus(
+        bind(token(char('(')), \lp.
+        bind(token(pDeBruijn), \e.
+        bind(token(char(')')), \rp.
+        result e)))
+    , pLambda), pINT)
+
+let pOpApply =
+    plus(
+        bind(token(pApply), \a.
+        bind(token(pOpApply), \opa.
+        result(OpApply(a, opa))))
+    , result(Ept()))
+
+let pDeBruijn =
+    bind(pApply, \a.
+    bind(pOpApply, \opa.
+    match opa with
+    | Ept() -> result(a)
+    | OpApply(x, xs) -> result(accum(a, opa))))
+
+let up = \c, i, d. match d with
+    | Var(n) -> Var(if (n < c) { n } else { n + i })
+    | Lambda(e) -> Lambda(up(c + i, i, e))
+    | Apply(e1, e2) -> Apply(up(c, i, e1), up(c, i, e2))
+
+let extractV = \d. match d with
+    | Var(m) -> m
+
+let substitute = \d, e, v. match d with
+    | Var(n) -> if (n == extractV(v)) { e } else { Var(n) }
+    | Lambda(e1) -> Lambda(substitute(e1, up(0, 1, e), Var(extractV(v) + 1)))
+    | Apply(e1, e2) -> Apply(substitute(e1, e, v), substitute(e2, e, v))
+
+let beta = \d. match d with
+    | Apply(Lambda(e1), e2) -> up(0, -1, substitute(e1, up(0, 1, e2), Var(0)))

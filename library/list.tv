@@ -13,3 +13,7 @@ let reverse = \l. reverseAppend(l, Nil())
 let length = \l. match l with
     | Nil() -> 0
     | Cons(x, xs) -> length(xs) + 1
+
+let foldl = \f, z, l. match l with
+    | Nil() -> z
+    | Cons(x, xs) -> foldl(f, f(z, x), xs)
