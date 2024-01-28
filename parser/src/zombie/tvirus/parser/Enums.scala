@@ -1,7 +1,7 @@
 package zombie.tvirus.parser
 
 enum PrimOp:
-  case ADD, MINUS, MUL, DIV, MOD, EQ, NE, GT, LT, GE, LE, STRAPPEND, STRLEN, STRHD, STRTL, STRCONS
+  case ADD, MINUS, MUL, DIV, MOD, EQ, NE, GT, LT, GE, LE, STRAPPEND, STRLEN, STRHD, STRTL, STRCONS, DigitToInt
 
 enum PrimType:
   case INT, BOOL, CHAR, STRING
