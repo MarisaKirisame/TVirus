@@ -113,3 +113,5 @@ let substitute = \d, e, v. match d with
 
 let beta = \d. match d with
     | Apply(Lambda(e1), e2) -> up(0, -1, substitute(e1, up(0, 1, e2), Var(0)))
+
+let main = beta(Apply(Lambda(Lambda(Apply(1, 2))), 1))
