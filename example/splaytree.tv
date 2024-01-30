@@ -1,0 +1,74 @@
+data Tree a = E() | T(Tree a, a, Tree a)
+
+let bigger = \pivot, t. match t with
+    | E() -> E()
+    | T(a, x, b) ->
+        if (x <= pivot)
+        { bigger(pivot, b) }
+        else
+        { match a with
+          | E() -> T(E(), x, b)
+          | T(a1, y, a2) ->
+                if (y <= pivot)
+                { T(bigger(pivot, a2), x, b)}
+                else
+                { T(bigger(pivot, a1), y, T(a2, x, b))} }
+
+let smaller = \pivot, t. match t with
+    | E() -> E()
+    | T(a, x, b) ->
+        if (x > pivot)
+        { smaller(pivot, a) }
+        else
+        { match b with
+          | E() -> T(a, x, E())
+          | T(a1, y, a2) ->
+                if (y > pivot)
+                { T(a, x, smaller(pivot, a1)) }
+                else
+                { T(T(a, x, a1), y, smaller(pivot, a2)) } }
+
+let insert = \x, t. T(smaller(x, t), x, bigger(x, t))
+
+let partition = \pivot, t. match t with
+    | E() -> E()
+    | T(a, x, b) ->
+        if (x <= pivot)
+        { match b with
+          | E() -> P(t, E())
+          | T(b1, y, b2) ->
+                if (y <= pivot)
+                { match partition(pivot, b2) with
+                  | P(small, big) -> P(T(T(a, x, b1), y, small), big) }
+                else
+                { match partition(pivot, b1) with
+                  | P(small, big) -> P(T(a, x, small), T(big, y, b2)) } }
+        else
+        { match a with
+          | E -> P(E(), t)
+          | T(a1, y, a2) ->
+                if (y <= pivot)
+                { match partition(pivot, a2) with
+                  | P(small, big) -> P(T(a1, y, small), T(big, x, b)) }
+                else
+                { match partition(pivot, a1) with
+                  | P(small, big) -> P(small, T(big, y, T(a2, x, b))) } }
+
+let merge = \s, t. match s with
+    | E() -> t
+    | T(a, x, b) ->
+        match partition(x, t) with
+        | P(ta, tb) -> T(merge(ta, a), x, merge(tb, b))
+
+let findMin = \t. match t with
+    | T(E(), x, b) -> x
+    | T(a, x, b) -> findMin(a)
+
+let deleteMin = \t. match t with
+    | T(E(), x, b) -> b
+    | T(T(E(), x, b), y, c) -> T(b, y, c)
+    | T(T(a, x, b), y, c) -> T(deleteMin(a), x, T(b, y, c))
+
+let ex = T(T(T(T(T(T(T(E(), 1, E()), 2, E()), 3, E()), 4, E()), 5, E()), 6, E()), 7, E())
+
+let main = findMin(insert(0, ex))
