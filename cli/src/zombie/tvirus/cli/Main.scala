@@ -41,7 +41,7 @@ object Main {
       |> simpl
       |> cps
       |> reify_global_funcs
-      |> simpl
+      |> unsimpl
       |> refresh
       |> dce
       |> codegen

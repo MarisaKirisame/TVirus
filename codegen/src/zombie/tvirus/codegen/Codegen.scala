@@ -503,7 +503,13 @@ def codegen_constructors(x: TypeDecl, env: CodeGenEnv): String = {
 
 def codegen_vd(x: ValueDecl, env: CodeGenEnv): String = {
   if (x.x == "main") {
-    s"int main() { ${codegen_expr(x.b, env)}; }"
+    s"""
+    int main() {
+      auto ret = ${codegen_expr(x.b, env)};
+      while (!ret->is_return()) ret = ret->from_tailcall()();
+      auto ans = ret.from_return();
+    }
+    """
   } else {
     (x.b match {
       case Expr.Abs(bindings, body) => {

@@ -139,7 +139,6 @@ def dce(p: Program): Program = {
 
 def show_program(p: Program): Program = {
   println("code:")
-  println(p.vds.map(x => x.x))
   println(show(pp(p)))
   p
 }

@@ -1,4 +1,4 @@
-data List a = Nil() | Cons(a, List a)
+let f = \a. 3
+let g = \a. 4
 
-let zipWith = \a, b. match P(a, b) with
-| P(Nil(), Nil()) -> Nil()
+let main = let q = 0, w = 1 in ((\a, b. if a == b { 1 } else { 2 })(f(0), g(0)))
