@@ -65,6 +65,12 @@ class ZombieBackEnd extends BackEnd {
     #include <zombie/zombie.hpp>
     IMPORT_ZOMBIE(default_config)
 
+    struct Init {
+      Init() {
+        Trailokya::get_trailokya().each_tc = [](){ record(); };
+      }
+    } init;
+
     template<>
     struct GetSize<int64_t> {
       size_t operator()(const int64_t& x) { return sizeof(x); }
@@ -195,6 +201,7 @@ class NoZombieBackEnd extends BackEnd {
       auto tcsp = f();
       while (!tcsp.t->is_return()) {
         tcsp.t = tcsp.t->from_tc()();
+        record();
       }
       return tcsp.t->from_return();
     }
@@ -215,7 +222,7 @@ class NoZombieBackEnd extends BackEnd {
   }
 }
 
-val UseZombie = true
+val UseZombie = false
 val BE = if (UseZombie) { ZombieBackEnd() } else { NoZombieBackEnd() }
 
 class CodeGenEnv(p: Program) {
@@ -637,6 +644,8 @@ def codegen(x: Program): String = {
   val env = CodeGenEnv(x)
   env.finish(
   """
+  #include "library/override.h"
+
   #include <memory>
   #include <variant>
   #include <functional>
@@ -663,6 +672,6 @@ def compile(x: String) = {
   Process("clang-format --style='{ColumnLimit: 200}' -i output.cpp").!
   Process("cat output.cpp").!
   println("compiling...")
-  Process("g++ -g -o3 -std=c++20 output.cpp").!
+  Process("g++ -g -o3 -std=c++20 -o output output.cpp -lmimalloc").!
   Process("cloc output.cpp").!
 }
