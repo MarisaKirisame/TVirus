@@ -80,7 +80,7 @@ def cps_expr(x: Expr, k: Cont): Expr = {
       k.toHO(x)
     }
     case Expr.Prim(l, op, r) => {
-        cps_expr_ho(l, l_ => cps_expr_ho(r, r_ => k.toHO(Expr.Prim(l_, op, r_))))
+        cps_expr_ho(l, l_ => cps_expr_ho(r, r_ => Expr.PrimCPS(l_, op, r_, k.toFO)))
     }
     case Expr.Fail() => k.toHO(Expr.Fail())
   }
