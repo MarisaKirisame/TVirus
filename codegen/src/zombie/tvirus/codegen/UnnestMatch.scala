@@ -147,15 +147,21 @@ def transform_program_raw(
   }
 }
 
+def always_match(pat: Pat): Boolean = {
+  pat match
+    case Pat.Var(_)     => true
+    case Pat.Wildcard   => true
+    case Pat.Cons(_, _) => false
+}
+
 def transform_program(
     matched: Seq[String],
     _lhs: Seq[Seq[Pat]],
     _rhs: Seq[Expr],
     env: LEnv
 ): Expr = {
-  if (_lhs.length == 0) {
-    // we cant put empty clauses in the memo table, as the table assume matched length is the same (as clause length bound matched length)
-    Expr.Fail()
+  if (_lhs.forall(pats => pats.length == 0 || always_match(pats(0)))) {
+    transform_program_raw(matched, _lhs, _rhs, env)
   } else {
     assert(_lhs.forall(pats => pats.length == matched.length))
     assert(_lhs.length == _rhs.length)
@@ -237,23 +243,9 @@ def unnest_match_expr(x: Expr, env: UnnestMatchEnv): Expr = {
     case Expr.Abs(x, b) => Expr.Abs(x, recurse(b))
     case Expr.Match(x, cases) => {
       val x_bind = freshName()
-      val bindings =
-        cases.map((l, r) => (freshName(), Expr.Abs(pat_vars(l), recurse(r))))
       Expr.Let(
-        (x_bind, recurse(x)) +: bindings,
-        unnest_matching(
-          x_bind,
-          cases
-            .zip(bindings)
-            .map((l, r) =>
-              (
-                l(0),
-                Expr
-                  .App(Expr.InlineVar(r(0)), pat_vars(l(0)).map(Expr.InlineVar))
-              )
-            ),
-          env
-        )
+        Seq((x_bind, recurse(x))),
+        unnest_matching(x_bind, cases, env)
       )
     }
     case Expr.App(f, x) =>

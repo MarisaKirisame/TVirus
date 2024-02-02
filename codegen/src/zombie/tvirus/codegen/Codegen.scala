@@ -132,6 +132,11 @@ class NoZombieBackEnd extends BackEnd {
   }
   def header: String = {
     s"""
+    template<typename X>
+    X fail() {
+      assert(false);
+    }
+    
     template<typename T>
     struct TrampolineNode;
 
@@ -433,7 +438,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
       )
     }
     case Expr.Fail() => {
-      Value.Expr(s"fail<Zombie<${codegen_type(env.tyck.expr_map(x), env)}>>()")
+      Value.Expr(s"fail<${env.BE.type_wrapper(codegen_type(env.tyck.expr_map(x), env))}>()")
     }
   }
 }
@@ -632,7 +637,7 @@ def codegen(x: Program, backend: String, log_path: String): String = {
   env.finish(
   s"""
   #define log_path "${log_path}"
-  #include "library/override.h"
+  #include "override.h"
 
   #include <memory>
   #include <variant>
