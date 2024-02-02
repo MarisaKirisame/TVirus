@@ -10,7 +10,7 @@ def get_time():
     return datetime.datetime.now().strftime("%m%d_%H%M%S")
 
 def write_to(path, val):
-    with open(path, "w") as f:
+    with open(path, "a") as f:
         f.write(val)
 
 def call(x):
@@ -22,7 +22,9 @@ def call(x):
     output = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False, text=True)
     write_to(f"{this_eval_dir}/output", output.stdout)
     subprocess.run(f"mv output.cpp {this_eval_dir}/output.cpp", shell=True, check=False)
-    subprocess.run("./output")
+    output = subprocess.run("./output", stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    write_to(f"{this_eval_dir}/output", output.stdout)
+    write_to(f"{this_eval_dir}/returncode", str(output.returncode))
 
 def run(ev):
     for x in flatten_nondet(ev).l:
