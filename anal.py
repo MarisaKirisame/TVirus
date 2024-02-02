@@ -24,13 +24,16 @@ def read(path):
 def plot(result):
     start_time = None
     x = []
-    y = []
+    allocated = []
+    total_allocated = []
     for r in result.log:
         if start_time is None:
             start_time = r["timestamp"]
         x.append((r["timestamp"] - start_time) / 1e9)
-        y.append(r["allocated"] / 1e6)
-    plt.plot(x, y, label=result.config["backend"])
+        allocated.append(r["allocated"] / 1e6)
+        total_allocated.append(r["total_allocated"] / 1e6)
+    plt.plot(x, allocated, label=result.config["backend"])
+    plt.plot(x, total_allocated, label=result.config["backend"]+"_total")
     plt.xlabel("time (seconds)")
     plt.ylabel("space (MB)")
 

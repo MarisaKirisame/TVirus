@@ -45,11 +45,17 @@ trait BackEnd {
   def header: String
   def handle_constructor(x: TypeDecl): String
   def codegen_binds_raw(x: Seq[String], y: Seq[String] => Value): Value
-  def codegen_binds(x: Seq[Value], y: Seq[String] => Value): Value = {
-    codegen_binds_raw(x.map(_.toExpr), y)
+  def codegen_binds(is_tail: Boolean, x: Seq[Value], y: Seq[String] => Value): Value = {
+    if (is_tail) {
+      val xname = x.map(_ => freshName())
+      val args = s"[=](${xname.map(n => s"const auto& ${n}").mkString(", ")}){ ${y(xname).toStmts} }" +: x.map(_.toExpr)
+      Value.Expr(s"TailCall(${args.mkString(", ")})")
+    } else {
+      codegen_binds_raw(x.map(_.toExpr), y)
+    }
   }
-  def codegen_bind(x: Value, y: String => Value): Value = {
-    codegen_binds(Seq(x), x_ => y(x_(0)))
+  def codegen_bind(is_tail: Boolean, x: Value, y: String => Value): Value = {
+    codegen_binds(is_tail, Seq(x), x_ => y(x_(0)))
   }
 }
 
@@ -171,7 +177,7 @@ class NoZombieBackEnd extends BackEnd {
     TCSP<Ret> FuncApp(
       const std::shared_ptr<std::function<TCSP<Ret>(const std::shared_ptr<X>&...)>>& f,
       const std::shared_ptr<X>&... x) {
-      return (*f)(x...);
+      return TailCall([=](const std::function<TCSP<Ret>(const std::shared_ptr<X>&...)>& func) { return func(x...); }, f);
     }
 
     template<typename T>
@@ -286,25 +292,6 @@ def simple_pat_to_name(p: Pat): String = {
   }
 }
 
-def codegen_case(name: String, c: (Pat, Expr), env: CodeGenEnv): Value = {
-  c(0) match {
-    case Pat.Wildcard => codegen_expr(c(1), env, true)
-    case Pat.Cons(cons_name, xs) => {
-      val idx = env.constructor_position_map.get(cons_name).get
-      Value.Stmts(s"""if (${name}.var.index() == ${idx}) { 
-          ${xs
-          .map(simple_pat_to_name)
-          .zipWithIndex
-          .map((n, arg_idx) =>
-            s"auto ${n} = std::get<${arg_idx}>(std::get<${idx}>(${name}.var));"
-          )
-          .mkString("\n")}
-          ${codegen_expr(c(1), env, true).toStmts}
-        }""")
-    }
-  }
-}
-
 def codegen_primop(l: String, op: PrimOp, r: String) = {
   op match {
     case PrimOp.EQ    => s"${l} == ${r}"
@@ -336,17 +323,10 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
   val recurse_tail = x => codegen_expr(x, env, true)
   val recurse_expr = (x: Expr) => recurse(x).toExpr
   val recurse_stmts = (x: Expr) => recurse(x).toStmts
-
+  
   def codegen_binds(x: Seq[Value], y: Seq[String] => Value): Value = {
-    if (is_tail) {
-      val xname = x.map(_ => freshName())
-      val args = s"[=](${xname.map(n => s"const auto& ${n}").mkString(", ")}){ ${y(xname).toStmts} }" +: x.map(_.toExpr)
-      Value.Expr(s"TailCall(${args.mkString(", ")})")
-    } else {
-      env.BE.codegen_binds(x, y)
-    }
+    env.BE.codegen_binds(is_tail, x, y)
   }
-
   def codegen_bind(x: Value, y: String => Value): Value = {
     codegen_binds(Seq(x), x_ => y(x_(0)))
   }
@@ -548,6 +528,7 @@ def codegen_match(x: TypeDecl, env: CodeGenEnv): String = {
   """
   header + cbracket(
     env.BE.codegen_bind(
+      true,
       Value.Expr(matched_name),
       matched =>
         Value.Stmts(

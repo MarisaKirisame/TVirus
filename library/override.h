@@ -3,11 +3,14 @@
 #include <mimalloc.h>
 
 uint64_t allocated = 0;
+uint64_t total_allocated = 0;
 uint64_t allocated_highest = 0;
 
 template <typename T>
 T __hook_add(T p) {
-    allocated += mi_usable_size(p);
+    uint64_t size = mi_usable_size(p);
+    allocated += size;
+    total_allocated += size;
     allocated_highest = allocated > allocated_highest ? allocated : allocated_highest;
     return p;
 }
@@ -121,11 +124,12 @@ std::chrono::time_point record_start_time = std::chrono::system_clock::now();
 std::chrono::time_point record_last_time = record_start_time;
 
 struct record_t {
-    uint64_t allocated;
     int64_t timestamp; 
+    uint64_t allocated;
+    uint64_t total_allocated;
 };
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(record_t, allocated, timestamp)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(record_t, timestamp, allocated, total_allocated)
 std::fstream fs(log_path, std::ios::out);
 
 bool record() {
@@ -133,7 +137,8 @@ bool record() {
     return false;
   } else {
     record_last_time = std::chrono::system_clock::now();
-    record_t rec({allocated, std::chrono::duration_cast<std::chrono::nanoseconds>(record_last_time.time_since_epoch()).count()});
+    auto ts = std::chrono::duration_cast<std::chrono::nanoseconds>(record_last_time.time_since_epoch()).count();
+    record_t rec({ts, allocated, total_allocated});
     nlohmann::json data(rec);
     fs << data << std::endl;
     return true;
