@@ -126,7 +126,7 @@ struct record_t {
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(record_t, allocated, timestamp)
-std::fstream fs("meow.log", std::ios::out);
+std::fstream fs(log_path, std::ios::out);
 
 bool record() {
   if (std::chrono::system_clock::now() - record_last_time < std::chrono::milliseconds(100)) {

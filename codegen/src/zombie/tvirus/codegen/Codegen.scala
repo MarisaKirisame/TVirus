@@ -222,10 +222,8 @@ class NoZombieBackEnd extends BackEnd {
   }
 }
 
-val UseZombie = false
-val BE = if (UseZombie) { ZombieBackEnd() } else { NoZombieBackEnd() }
-
-class CodeGenEnv(p: Program) {
+class CodeGenEnv(p: Program, be: BackEnd) {
+  val BE = be
   val tyck: TyckEnv = tyck_program(p)
   val constructor_adt_name_map: mutable.Map[String, String] = mutable.Map[String, String]()
   p.tds.map(td => td.cons.map(cb => constructor_adt_name_map.put(cb.name, td.name)))
@@ -253,7 +251,7 @@ class CodeGenEnv(p: Program) {
 def codegen_args(bindings: Seq[String], env: CodeGenEnv): String = {
   bracket(
     bindings
-      .map(y => s"const ${BE.type_wrapper(codegen_type(tyck_expr(Expr.Var(y), env.tyck), env))}& ${y}")
+      .map(y => s"const ${env.BE.type_wrapper(codegen_type(tyck_expr(Expr.Var(y), env.tyck), env))}& ${y}")
       .mkString(", ")
   )
 }
@@ -272,7 +270,7 @@ def codegen_vd_fwd(x: ValueDecl, env: CodeGenEnv): String = {
     x.b match {
       case Expr.Abs(bindings, body) =>
         codegen_template_header_from_name(x.x, env) +
-          BE.return_type_wrapper(
+          env.BE.return_type_wrapper(
             codegen_type(
               env.tyck.expr_map.get(body).get,
               env
@@ -345,7 +343,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
       val args = s"[=](${xname.map(n => s"const auto& ${n}").mkString(", ")}){ ${y(xname).toStmts} }" +: x.map(_.toExpr)
       Value.Expr(s"TailCall(${args.mkString(", ")})")
     } else {
-      BE.codegen_binds(x, y)
+      env.BE.codegen_binds(x, y)
     }
   }
 
@@ -387,7 +385,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
       )
     }
     case Expr.Abs(bindings, body) => {
-      BE.val_wrapper(
+      env.BE.val_wrapper(
         codegen_type(
           env.tyck.expr_map(x),
           env
@@ -395,7 +393,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
         s"""[=](${bindings
             .map(b =>
               named_cref_wrapper(
-                BE.type_wrapper(codegen_type(env.tyck.var_map(b), env)),
+                env.BE.type_wrapper(codegen_type(env.tyck.var_map(b), env)),
                 b
               )
             )
@@ -416,10 +414,10 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
       """)
     }
     case Expr.LitInt(x) => {
-      BE.val_wrapper("int64_t", x.toString)
+      env.BE.val_wrapper("int64_t", x.toString)
     }
     case Expr.LitBool(x) => {
-      BE.val_wrapper("bool", if (x) "true" else "false")
+      env.BE.val_wrapper("bool", if (x) "true" else "false")
     }
     case Expr.If(i, t, e) =>
       codegen_bind(
@@ -430,7 +428,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
       codegen_binds(
         Seq(recurse(l), recurse(r)),
         xs => {
-          BE.val_wrapper(
+          env.BE.val_wrapper(
             codegen_type(env.tyck.expr_map(x), env),
             codegen_primop(xs(0), op, xs(1))
           )
@@ -447,7 +445,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
               l(0)
             }
           }
-          val v = BE.val_wrapper(
+          val v = env.BE.val_wrapper(
             codegen_type(t, env),
             codegen_primop(xs(0), op, xs(1)))
           Value.Expr(s"${xs(2)}(${v})")
@@ -474,8 +472,8 @@ def codegen_type_raw(x: Type, env: CodeGenEnv): String = {
     case Type.Var(name, _) => name
     case Type.TyCons(name) => name
     case Type.Func(args, ret) =>
-      s"std::function<${BE.return_type_wrapper(recurse(ret))}(${args
-          .map(x => cref_wrapper(BE.type_wrapper(recurse(x))))
+      s"std::function<${env.BE.return_type_wrapper(recurse(ret))}(${args
+          .map(x => cref_wrapper(env.BE.type_wrapper(recurse(x))))
           .mkString(", ")})>"
     case Type.App(Type.TyCons(name), xs) =>
       s"${name}<${xs.map(recurse).mkString(", ")}>"
@@ -505,7 +503,7 @@ def codegen_types(x: Seq[Type], env: CodeGenEnv): Seq[String] = {
 }
 
 def codegen_types_wrapped(x: Seq[Type], env: CodeGenEnv): Seq[String] = {
-  x.map(t => BE.type_wrapper(codegen_type(t, env)))
+  x.map(t => env.BE.type_wrapper(codegen_type(t, env)))
 }
 
 def tuplify(x: Seq[String]): String = {
@@ -543,13 +541,13 @@ def codegen_match(x: TypeDecl, env: CodeGenEnv): String = {
     ${codegen_template_header(x.xs)}
     auto ${x.name}Match(${(Seq(
       named_cref_wrapper(
-        BE.type_wrapper(codegen_constructor_type(x)),
+        env.BE.type_wrapper(codegen_constructor_type(x)),
         matched_name
       )
     ) ++ matcher_name.map(F => "const auto& " + F)).mkString(", ")})
   """
   header + cbracket(
-    BE.codegen_bind(
+    env.BE.codegen_bind(
       Value.Expr(matched_name),
       matched =>
         Value.Stmts(
@@ -590,18 +588,18 @@ def codegen_constructors(x: TypeDecl, env: CodeGenEnv): String = {
   x.cons.zipWithIndex
     .map((cb, idx) => {
       val ret_type_unwrapped = codegen_constructor_type(x)
-      val ret_type = BE.type_wrapper(ret_type_unwrapped)
+      val ret_type = env.BE.type_wrapper(ret_type_unwrapped)
       val name = cb.name
       val type_with_name = cb.args.map(ty => (ty, freshName()))
       val args = bracket(
         type_with_name
           .map((ty, n) =>
-            named_cref_wrapper(BE.type_wrapper(codegen_type(ty, env)), n)
+            named_cref_wrapper(env.BE.type_wrapper(codegen_type(ty, env)), n)
           )
           .mkString(", ")
       )
       s"""${codegen_template_header(x.xs)} ${ret_type} ${name}${args} {
-       ${BE
+       ${env.BE
           .val_wrapper(
             ret_type_unwrapped,
             ret_type_unwrapped + cbracket(s"""
@@ -616,7 +614,7 @@ def codegen_constructors(x: TypeDecl, env: CodeGenEnv): String = {
           .toStmts}
     }"""
     })
-    .mkString("\n") + BE.handle_constructor(x)
+    .mkString("\n") + env.BE.handle_constructor(x)
 }
 
 def codegen_vd(x: ValueDecl, env: CodeGenEnv): String = {
@@ -626,7 +624,7 @@ def codegen_vd(x: ValueDecl, env: CodeGenEnv): String = {
     (x.b match {
       case Expr.Abs(bindings, body) => {
         codegen_template_header_from_name(x.x, env) +
-          BE.return_type_wrapper(
+          env.BE.return_type_wrapper(
             codegen_type(
               env.tyck.expr_map.get(body).get,
               env
@@ -640,10 +638,19 @@ def codegen_vd(x: ValueDecl, env: CodeGenEnv): String = {
   }
 }
 
-def codegen(x: Program): String = {
-  val env = CodeGenEnv(x)
+def codegen(x: Program, backend: String, log_path: String): String = {
+  val BE = if (backend == "baseline") { 
+    NoZombieBackEnd()
+   } else if (backend == "zombie") { 
+    ZombieBackEnd()
+  } else {
+    assert(false)
+  }
+
+  val env = CodeGenEnv(x, BE)
   env.finish(
-  """
+  s"""
+  #define log_path "${log_path}"
   #include "library/override.h"
 
   #include <memory>
@@ -660,7 +667,7 @@ def codegen(x: Program): String = {
 
 def compile(x: String) = {
   try {
-    Process("rm output.cpp").!
+    Process("rm output.cpp || :").!
     // todo use os-lib
     val fileWriter = new FileWriter("output.cpp")
     fileWriter.write(x)
@@ -670,7 +677,6 @@ def compile(x: String) = {
       println("fail to write into target-file" + e.getMessage)
   }
   Process("clang-format --style='{ColumnLimit: 200}' -i output.cpp").!
-  Process("cat output.cpp").!
   println("compiling...")
   Process("g++ -g -o3 -std=c++20 -o output output.cpp -lmimalloc").!
   Process("cloc output.cpp").!

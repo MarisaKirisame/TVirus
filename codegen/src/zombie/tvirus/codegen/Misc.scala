@@ -196,17 +196,8 @@ def is_fresh(p: Program): Boolean = {
   p.vds.forall(vd => expr_is_fresh(vd.b, seen))
 }
 
-@main def main(): Unit = {
-  // val program = "example/mod2.tv"
-  // val program = "example/list.tv"
-  // val program = "example/merge.tv"
-  // val program = "example/taba.tv"
-  // val program = "example/pascal.tv"
-  // val program = "example/boolean.tv"
-  // val program = "example/rbt.tv"
-  // val program = "example/mergesort.tv"
-  val program = "example/debug.tv"
-  var x = reify_global_funcs(refresh(cons(drive(CharStreams.fromFileName(program)))))
+@main def main(program: String, backend: String, log_path: String): Unit = {
+  var x = reify_global_funcs(refresh(cons(drive(CharStreams.fromFileName(s"example/${program}.tv")))))
   println(show(pp(x)))
   x = unnest_match(x)
   println("unnest ok!!!")
@@ -218,6 +209,6 @@ def is_fresh(p: Program): Boolean = {
   // for ((k, v) <- tyck.var_map) {
   //  println((k, pp_type(v)))
   // }
-  val cpp_code = codegen(x)
+  val cpp_code = codegen(x, backend=backend, log_path=log_path)
   compile(cpp_code)
 }
