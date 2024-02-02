@@ -40,4 +40,5 @@ for x in os.listdir(d):
     plot(res)
 
 plt.legend()
+plt.savefig("./result.png")
 plt.show()
