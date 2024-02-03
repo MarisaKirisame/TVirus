@@ -1,0 +1,5 @@
+let next = \n. 1103515245 * n + 12345
+
+let rand = \seed. P((next(seed) / 65535) % 32768, next seed)
+
+let main = rand(3)
