@@ -105,7 +105,7 @@ def collect_decls(
     case Expr.Let(xs, b) => collect_multiple(xs.map((name, x) => x) :+ b, p, cm, acc)
     case Expr.Match(x, bs) =>
       collect_multiple(
-        bs.map(pattern => {
+        x +: bs.map(pattern => {
           pattern match {
             case (pat, expr) => expr
           }

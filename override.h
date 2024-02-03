@@ -1,29 +1,25 @@
 #pragma once
 
-#include <atomic>
-#include <fstream>
-#include <chrono>
-#include <filesystem>
-#include <vector>
-#include <iostream>
-
 #include <mimalloc.h>
-#include <nlohmann/json.hpp>
 
-std::atomic_uint64_t allocated = 0;
-std::atomic_uint64_t allocated_highest = 0;
+uint64_t allocated = 0;
+uint64_t total_allocated = 0;
+uint64_t allocated_highest = 0;
 
 template <typename T>
 T __hook_add(T p) {
-    allocated.fetch_add(mi_usable_size(p));
-    allocated_highest.store(std::max(allocated.load(), allocated_highest.load()));
+    uint64_t size = mi_usable_size(p);
+    allocated += size;
+    total_allocated += size;
+    allocated_highest = allocated > allocated_highest ? allocated : allocated_highest;
     return p;
 }
 
 void __hook_sub(void* p) {
-    allocated.fetch_sub(mi_usable_size(p));
+    allocated -= mi_usable_size(p);
 }
 
+/*
 // Standard C allocation
 #define malloc(n)               __hook_add(mi_malloc(n))
 #define calloc(n,c)             __hook_add(mi_calloc(n,c))
@@ -70,6 +66,7 @@ void __hook_sub(void* p) {
 #define _aligned_offset_malloc(n,a,o)         __hook_add(mi_malloc_aligned_at(n,a,o))
 #define _aligned_offset_realloc(p,n,a,o)      (__hook_sub(p), __hook_add(mi_realloc_aligned_at(p,n,a,o)))
 #define _aligned_offset_recalloc(p,s,n,a,o)   (__hook_sub(p), __hook_add(mi_recalloc_aligned_at(p,s,n,a,o)))
+*/
 
 #if defined(__cplusplus)
   #include <new>
@@ -115,49 +112,35 @@ void __hook_sub(void* p) {
   #endif
 #endif
 
+#include <iostream>
+#include <atomic>
+#include <fstream>
+#include <chrono>
+#include <filesystem>
+#include <vector>
+#include <nlohmann/json.hpp>
+
 std::chrono::time_point record_start_time = std::chrono::system_clock::now();
 std::chrono::time_point record_last_time = record_start_time;
-std::filesystem::path record_dir = std::filesystem::current_path() / std::filesystem::path("records");
-std::filesystem::path record_filename = record_dir / std::filesystem::path(std::to_string(record_start_time.time_since_epoch().count()) + ".json");
 
 struct record_t {
-    uint64_t allocated;
     int64_t timestamp; 
+    uint64_t allocated;
+    uint64_t total_allocated;
 };
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(record_t, allocated, timestamp)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(record_t, timestamp, allocated, total_allocated)
+std::fstream fs(log_path, std::ios::out);
 
-bool record_try() {
-    static bool inited = false;
-    if (!inited) {
-        std::filesystem::create_directory(record_dir);
-
-        std::vector<record_t> records;
-        records.push_back({allocated.load(), std::chrono::duration_cast<std::chrono::nanoseconds>(record_last_time.time_since_epoch()).count()});
-        
-        nlohmann::json data(records);
-        std::fstream record_file(record_filename, std::ios::out | std::ios::trunc);
-        record_file << data << std::endl;
-
-        inited = true;
-        return true;
-    }
-
-    if (std::chrono::system_clock::now() - record_last_time < std::chrono::seconds(1)) {
-        return false;
-    }
-
+bool record() {
+  if (std::chrono::system_clock::now() - record_last_time < std::chrono::milliseconds(100)) {
+    return false;
+  } else {
     record_last_time = std::chrono::system_clock::now();
-
-    std::fstream record_file1(record_filename, std::ios::in);
-    std::vector<record_t> records = nlohmann::json::parse(record_file1).template get<std::vector<record_t>>();
-    record_file1.close();
-
-    records.push_back({allocated.load(), std::chrono::duration_cast<std::chrono::nanoseconds>(record_last_time.time_since_epoch()).count()});
-    
-    nlohmann::json data(records);
-    std::fstream record_file2(record_filename, std::ios::out | std::ios::trunc);
-    record_file2 << data << std::endl;
-
+    auto ts = std::chrono::duration_cast<std::chrono::nanoseconds>(record_last_time.time_since_epoch()).count();
+    record_t rec({ts, allocated, total_allocated});
+    nlohmann::json data(rec);
+    fs << data << std::endl;
     return true;
+  }
 }

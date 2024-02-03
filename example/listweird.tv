@@ -1,15 +1,3 @@
-data List a = Nil() | Cons(a, List a)
-
-let map = \f, l. match l with
-    | Nil() -> Nil()
-    | Cons(x, xs) -> Cons(f(x), map(f, xs))
-
-let reverseAppend = \l1, l2. match l1 with
-    | Nil() -> l2
-    | Cons(a, l) -> reverseAppend(l, Cons(a, l2))
-
-let reverse = \l. reverseAppend(l, Nil())
-
 let zipWith = \f, a, b. match P(a, b) with
 | P(Nil(), Nil()) -> Nil()
 | P(Cons(ah, at), Cons(bh, bt)) -> Cons(f(ah, bh), zipWith(f, at, bt))

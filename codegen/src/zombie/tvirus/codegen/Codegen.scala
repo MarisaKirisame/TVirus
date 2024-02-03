@@ -37,6 +37,7 @@ def cbracket(x: String) = "{" + x + "}"
 
 trait BackEnd {
   def type_wrapper(x: String): String
+  def return_type_wrapper(x: String): String
   def val_wrapper_raw(t: String, v: String): String
   def val_wrapper(t: String, v: String): Value = {
     Value.Expr(val_wrapper_raw(t, v))
@@ -44,11 +45,17 @@ trait BackEnd {
   def header: String
   def handle_constructor(x: TypeDecl): String
   def codegen_binds_raw(x: Seq[String], y: Seq[String] => Value): Value
-  def codegen_binds(x: Seq[Value], y: Seq[String] => Value): Value = {
-    codegen_binds_raw(x.map(_.toExpr), y)
+  def codegen_binds(is_tail: Boolean, x: Seq[Value], y: Seq[String] => Value): Value = {
+    if (is_tail) {
+      val xname = x.map(_ => freshName())
+      val args = s"[=](${xname.map(n => s"const auto& ${n}").mkString(", ")}){ ${y(xname).toStmts} }" +: x.map(_.toExpr)
+      Value.Expr(s"TailCall(${args.mkString(", ")})")
+    } else {
+      codegen_binds_raw(x.map(_.toExpr), y)
+    }
   }
-  def codegen_bind(x: Value, y: String => Value): Value = {
-    codegen_binds(Seq(x), x_ => y(x_(0)))
+  def codegen_bind(is_tail: Boolean, x: Value, y: String => Value): Value = {
+    codegen_binds(is_tail, Seq(x), x_ => y(x_(0)))
   }
 }
 
@@ -56,10 +63,19 @@ class ZombieBackEnd extends BackEnd {
   def type_wrapper(x: String): String = {
     s"Zombie<${x}>"
   }
+  def return_type_wrapper(x: String): String = {
+    s"TCZombie<${x}>"
+  }
   def header: String = {
     s"""
     #include <zombie/zombie.hpp>
     IMPORT_ZOMBIE(default_config)
+
+    struct Init {
+      Init() {
+        Trailokya::get_trailokya().each_tc = [](){ record(); };
+      }
+    } init;
 
     template<>
     struct GetSize<int64_t> {
@@ -71,15 +87,15 @@ class ZombieBackEnd extends BackEnd {
     };
     template<typename X, typename... Y>
     struct GetSize<std::function<X(Y...)>> {
-      size_t operator()(const auto& x) { }
+      size_t operator()(const auto& x) { return sizeof(void*); }
     };
     template<typename X>
     X fail() {
       assert(false);
     }
     template<typename Ret, typename... X>
-    Zombie<Ret> FuncApp(const Zombie<std::function<Zombie<Ret>(const Zombie<X>&...)>>& f, const Zombie<X>&... x) {
-      return bindZombie([=](const std::function<Zombie<Ret>(const Zombie<X>&...)>& func) { return func(x...); }, f);
+    TCZombie<Ret> FuncApp(const Zombie<std::function<TCZombie<Ret>(const Zombie<X>&...)>>& f, const Zombie<X>&... x) {
+      return TailCall([=](const std::function<TCZombie<Ret>(const Zombie<X>&...)>& func) { return func(x...); }, f);
     }
     """
   }
@@ -91,7 +107,7 @@ class ZombieBackEnd extends BackEnd {
         else { s"<${x.xs.mkString(", ")}>" }
       }> {
       size_t operator()(const auto& x) {
-
+        return 8;
       }
     };
     """
@@ -111,12 +127,94 @@ class NoZombieBackEnd extends BackEnd {
   def type_wrapper(x: String): String = {
     s"std::shared_ptr<${x}>"
   }
+  def return_type_wrapper(x: String): String = {
+    s"TCSP<${x}>"
+  }
   def header: String = {
     s"""
+    template<typename X>
+    X fail() {
+      assert(false);
+    }
+    
+    template<typename T>
+    struct TrampolineNode;
+
+    template<typename T>
+    using Trampoline = std::shared_ptr<TrampolineNode<T>>;
+
+    template<typename T>
+    struct TrampolineNode {
+      virtual ~TrampolineNode() { }
+      virtual bool is_return() = 0;
+      virtual const T& from_return() = 0;
+      virtual const std::function<Trampoline<T>()>& from_tc() = 0;
+    };
+
+    template<typename T>
+    struct ReturnNode : TrampolineNode<T> {
+      T t;
+      ReturnNode(T&& t) : t(std::move(t)) { }
+      ReturnNode(const T& t) : t(t) { }
+      bool is_return() override { return true; }
+      const T& from_return() override { return t; }
+      const std::function<Trampoline<T>()>& from_tc() override { assert(false); }
+    };
+
+    template<typename T>
+    struct TCNode : TrampolineNode<T> {
+      std::function<Trampoline<T>()> f;
+      TCNode(std::function<Trampoline<T>()>&& f) : f(std::move(f)) { }
+      bool is_return() override { return false; }
+      const T& from_return() override { assert(false); }
+      const std::function<Trampoline<T>()>& from_tc() override { return f; }
+    };
+
+    template<typename T>
+    struct TCSP {
+      Trampoline<std::shared_ptr<T>> t;
+      TCSP(const std::shared_ptr<T>& sp) : t(std::make_shared<ReturnNode<std::shared_ptr<T>>>(sp)) { }
+      TCSP(std::shared_ptr<T>&& sp) : t(std::make_shared<ReturnNode<std::shared_ptr<T>>>(std::move(sp))) { }
+      TCSP(std::function<Trampoline<std::shared_ptr<T>>()>&& f) : t(std::make_shared<TCNode<std::shared_ptr<T>>>(std::move(f))) { }
+    };
+
     template<typename Ret, typename... X>
-    std::shared_ptr<Ret> FuncApp(const std::shared_ptr<std::function<std::shared_ptr<Ret>(const std::shared_ptr<X>&...)>>& f,
+    TCSP<Ret> FuncApp(
+      const std::shared_ptr<std::function<TCSP<Ret>(const std::shared_ptr<X>&...)>>& f,
       const std::shared_ptr<X>&... x) {
-      return (*f)(x...);
+      return TailCall([=](const std::function<TCSP<Ret>(const std::shared_ptr<X>&...)>& func) { return func(x...); }, f);
+    }
+
+    template<typename T>
+    TCSP<T> ToTCSP(std::shared_ptr<T>&& sp) {
+      return TCSP<T>(std::move(sp));
+    }
+    template<typename T>
+    TCSP<T> ToTCSP(const std::shared_ptr<T>& sp) {
+      return TCSP<T>(sp);
+    }
+    template<typename T>
+    TCSP<T> ToTCSP(TCSP<T>&& tcsp) {
+      return tcsp;
+    }
+    template<typename T>
+    TCSP<T> ToTCSP(const TCSP<T>& tcsp) {
+      return tcsp;
+    }
+
+    template<typename F, typename ...X>
+    auto TailCall(F&& f, const std::shared_ptr<X>&... x) {
+      using ret_type = decltype(ToTCSP(f((*x)...)));
+      return ret_type([=, f=std::forward<F>(f)](){ return ToTCSP(f((*x)...)).t; });
+    }
+    template<typename F>
+    auto bindZombieTC(F&& f) {
+      auto tcsp = f();
+      while (!tcsp.t->is_return()) {
+        tcsp.t = tcsp.t->from_tc()();
+        record();
+      }
+      return tcsp.t->from_return();
     }
     """
   }
@@ -135,11 +233,8 @@ class NoZombieBackEnd extends BackEnd {
   }
 }
 
-val UseZombie = true
-val BE = if (UseZombie) { ZombieBackEnd() }
-else { NoZombieBackEnd() }
-
-class CodeGenEnv(p: Program) {
+class CodeGenEnv(p: Program, be: BackEnd) {
+  val BE = be
   val tyck: TyckEnv = tyck_program(p)
   val constructor_adt_name_map: mutable.Map[String, String] = mutable.Map[String, String]()
   p.tds.map(td => td.cons.map(cb => constructor_adt_name_map.put(cb.name, td.name)))
@@ -167,9 +262,7 @@ class CodeGenEnv(p: Program) {
 def codegen_args(bindings: Seq[String], env: CodeGenEnv): String = {
   bracket(
     bindings
-      .map(y =>
-        s"const ${BE.type_wrapper(codegen_type(tyck_expr(Expr.Var(y), env.tyck), env))}& ${y}"
-      )
+      .map(y => s"const ${env.BE.type_wrapper(codegen_type(tyck_expr(Expr.Var(y), env.tyck), env))}& ${y}")
       .mkString(", ")
   )
 }
@@ -188,7 +281,7 @@ def codegen_vd_fwd(x: ValueDecl, env: CodeGenEnv): String = {
     x.b match {
       case Expr.Abs(bindings, body) =>
         codegen_template_header_from_name(x.x, env) +
-          BE.type_wrapper(
+          env.BE.return_type_wrapper(
             codegen_type(
               env.tyck.expr_map.get(body).get,
               env
@@ -201,25 +294,6 @@ def codegen_vd_fwd(x: ValueDecl, env: CodeGenEnv): String = {
 def simple_pat_to_name(p: Pat): String = {
   p match {
     case Pat.Var(name) => name
-  }
-}
-
-def codegen_case(name: String, c: (Pat, Expr), env: CodeGenEnv): Value = {
-  c(0) match {
-    case Pat.Wildcard => codegen_expr(c(1), env)
-    case Pat.Cons(cons_name, xs) => {
-      val idx = env.constructor_position_map.get(cons_name).get
-      Value.Stmts(s"""if (${name}.var.index() == ${idx}) { 
-          ${xs
-          .map(simple_pat_to_name)
-          .zipWithIndex
-          .map((n, arg_idx) =>
-            s"auto ${n} = std::get<${arg_idx}>(std::get<${idx}>(${name}.var));"
-          )
-          .mkString("\n")}
-          ${codegen_expr(c(1), env).toStmts}
-        }""")
-    }
   }
 }
 
@@ -249,10 +323,21 @@ def get_adt_name(t: Type) = {
     case Type.App(Type.TyCons(n), _) => n
 }
 
-def codegen_expr(x: Expr, env: CodeGenEnv): Value = {
-  val recurse = x => codegen_expr(x, env)
+def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
+  val recurse = x => codegen_expr(x, env, false)
+  val recurse_tail = x => codegen_expr(x, env, true)
+  val recurse_expr_tail = (x: Expr) => recurse_tail(x).toExpr
   val recurse_expr = (x: Expr) => recurse(x).toExpr
   val recurse_stmts = (x: Expr) => recurse(x).toStmts
+  val recurse_stmts_tail = (x: Expr) => recurse_tail(x).toStmts
+  
+  def codegen_binds(x: Seq[Value], y: Seq[String] => Value): Value = {
+    env.BE.codegen_binds(is_tail, x, y)
+  }
+  def codegen_bind(x: Value, y: String => Value): Value = {
+    codegen_binds(Seq(x), x_ => y(x_(0)))
+  }
+
   x match {
     case Expr.Var(name) => Value.Expr(name)
     case Expr.Match(matched, cases) => {
@@ -268,7 +353,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv): Value = {
       Value.Expr(
         s"${get_adt_name(matched_type)}Match(" +
           s"${recurse_expr(matched)}, ${transformed_cases
-              .map((lhs, rhs) => s"[=](${lhs(1).map(n => "const auto& " ++ n).mkString(", ")}){${recurse_stmts(rhs)}}")
+              .map((lhs, rhs) => s"[=](${lhs(1).map(n => "const auto& " ++ n).mkString(", ")}){${recurse_stmts_tail(rhs)}}")
               .mkString(", ")})"
       )
     }
@@ -287,7 +372,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv): Value = {
       )
     }
     case Expr.Abs(bindings, body) => {
-      BE.val_wrapper(
+      env.BE.val_wrapper(
         codegen_type(
           env.tyck.expr_map(x),
           env
@@ -295,11 +380,11 @@ def codegen_expr(x: Expr, env: CodeGenEnv): Value = {
         s"""[=](${bindings
             .map(b =>
               named_cref_wrapper(
-                BE.type_wrapper(codegen_type(env.tyck.var_map(b), env)),
+                env.BE.type_wrapper(codegen_type(env.tyck.var_map(b), env)),
                 b
               )
             )
-            .mkString(", ")}){ ${recurse(body).toStmts} }"""
+            .mkString(", ")}){ ${recurse_tail(body).toStmts} }"""
       )
     }
     case Expr.Cons(name, xs) => {
@@ -312,32 +397,50 @@ def codegen_expr(x: Expr, env: CodeGenEnv): Value = {
     case Expr.Let(bs, body) => {
       Value.Stmts(s"""
         ${bs.map((n, v) => s"auto ${n} = ${recurse_expr(v)};").mkString("\n")} 
-        ${recurse_stmts(body)}
+        ${recurse_stmts_tail(body)}
       """)
     }
     case Expr.LitInt(x) => {
-      BE.val_wrapper("int64_t", x.toString)
+      env.BE.val_wrapper("int64_t", x.toString)
     }
     case Expr.LitBool(x) => {
-      BE.val_wrapper("bool", if (x) "true" else "false")
+      env.BE.val_wrapper("bool", if (x) "true" else "false")
     }
     case Expr.If(i, t, e) =>
-      BE.codegen_bind(
+      codegen_bind(
         recurse(i),
-        i_ => Value.Expr(s"(${i_} ? ${recurse(t)} : ${recurse(e)})")
+        i_ => Value.Expr(s"(${i_} ? ${recurse_tail(t)} : ${recurse_tail(e)})")
       )
     case Expr.Prim(l, op, r) => {
-      BE.codegen_binds(
+      codegen_binds(
         Seq(recurse(l), recurse(r)),
-        xs =>
-          BE.val_wrapper(
+        xs => {
+          env.BE.val_wrapper(
             codegen_type(env.tyck.expr_map(x), env),
             codegen_primop(xs(0), op, xs(1))
           )
+        }
+      )
+    }
+    case Expr.PrimCPS(l, op, r, k) => {
+      codegen_binds(
+        Seq(recurse(l), recurse(r), recurse(k)),
+        xs => {
+          val t = resolve(env.tyck.expr_map(k)) match {
+            case Type.Func(l, r) => {
+              assert(l.length == 1)
+              l(0)
+            }
+          }
+          val v = env.BE.val_wrapper(
+            codegen_type(t, env),
+            codegen_primop(xs(0), op, xs(1)))
+          Value.Expr(s"${xs(2)}(${v})")
+        }
       )
     }
     case Expr.Fail() => {
-      Value.Expr(s"fail<Zombie<${codegen_type(env.tyck.expr_map(x), env)}>>()")
+      Value.Expr(s"fail<${env.BE.type_wrapper(codegen_type(env.tyck.expr_map(x), env))}>()")
     }
   }
 }
@@ -356,8 +459,8 @@ def codegen_type_raw(x: Type, env: CodeGenEnv): String = {
     case Type.Var(name, _) => name
     case Type.TyCons(name) => name
     case Type.Func(args, ret) =>
-      s"std::function<${BE.type_wrapper(recurse(ret))}(${args
-          .map(x => cref_wrapper(BE.type_wrapper(recurse(x))))
+      s"std::function<${env.BE.return_type_wrapper(recurse(ret))}(${args
+          .map(x => cref_wrapper(env.BE.type_wrapper(recurse(x))))
           .mkString(", ")})>"
     case Type.App(Type.TyCons(name), xs) =>
       s"${name}<${xs.map(recurse).mkString(", ")}>"
@@ -387,7 +490,7 @@ def codegen_types(x: Seq[Type], env: CodeGenEnv): Seq[String] = {
 }
 
 def codegen_types_wrapped(x: Seq[Type], env: CodeGenEnv): Seq[String] = {
-  x.map(t => BE.type_wrapper(codegen_type(t, env)))
+  x.map(t => env.BE.type_wrapper(codegen_type(t, env)))
 }
 
 def tuplify(x: Seq[String]): String = {
@@ -425,13 +528,14 @@ def codegen_match(x: TypeDecl, env: CodeGenEnv): String = {
     ${codegen_template_header(x.xs)}
     auto ${x.name}Match(${(Seq(
       named_cref_wrapper(
-        BE.type_wrapper(codegen_constructor_type(x)),
+        env.BE.type_wrapper(codegen_constructor_type(x)),
         matched_name
       )
     ) ++ matcher_name.map(F => "const auto& " + F)).mkString(", ")})
   """
   header + cbracket(
-    BE.codegen_bind(
+    env.BE.codegen_bind(
+      true,
       Value.Expr(matched_name),
       matched =>
         Value.Stmts(
@@ -472,18 +576,18 @@ def codegen_constructors(x: TypeDecl, env: CodeGenEnv): String = {
   x.cons.zipWithIndex
     .map((cb, idx) => {
       val ret_type_unwrapped = codegen_constructor_type(x)
-      val ret_type = BE.type_wrapper(ret_type_unwrapped)
+      val ret_type = env.BE.type_wrapper(ret_type_unwrapped)
       val name = cb.name
       val type_with_name = cb.args.map(ty => (ty, freshName()))
       val args = bracket(
         type_with_name
           .map((ty, n) =>
-            named_cref_wrapper(BE.type_wrapper(codegen_type(ty, env)), n)
+            named_cref_wrapper(env.BE.type_wrapper(codegen_type(ty, env)), n)
           )
           .mkString(", ")
       )
       s"""${codegen_template_header(x.xs)} ${ret_type} ${name}${args} {
-       ${BE
+       ${env.BE
           .val_wrapper(
             ret_type_unwrapped,
             ret_type_unwrapped + cbracket(s"""
@@ -498,34 +602,45 @@ def codegen_constructors(x: TypeDecl, env: CodeGenEnv): String = {
           .toStmts}
     }"""
     })
-    .mkString("\n") + BE.handle_constructor(x)
+    .mkString("\n") + env.BE.handle_constructor(x)
 }
 
 def codegen_vd(x: ValueDecl, env: CodeGenEnv): String = {
   if (x.x == "main") {
-    s"int main() { ${codegen_expr(x.b, env)}; }"
+    s"int main() { bindZombieTC([](){ return ${codegen_expr(x.b, env, true)};}); }"
   } else {
     (x.b match {
       case Expr.Abs(bindings, body) => {
         codegen_template_header_from_name(x.x, env) +
-          BE.type_wrapper(
+          env.BE.return_type_wrapper(
             codegen_type(
               env.tyck.expr_map.get(body).get,
               env
             )
           ) + " " + x.x + codegen_args(bindings, env) +
           s"""{ 
-          ${codegen_expr(body, env).toStmts}
+          ${codegen_expr(body, env, true).toStmts}
         }"""
       }
     })
   }
 }
 
-def codegen(x: Program): String = {
-  val env = CodeGenEnv(x)
+def codegen(x: Program, backend: String, log_path: String): String = {
+  val BE = if (backend == "baseline") { 
+    NoZombieBackEnd()
+   } else if (backend == "zombie") { 
+    ZombieBackEnd()
+  } else {
+    assert(false)
+  }
+
+  val env = CodeGenEnv(x, BE)
   env.finish(
-  """
+  s"""
+  #define log_path "${log_path}"
+  #include "override.h"
+
   #include <memory>
   #include <variant>
   #include <functional>
@@ -540,7 +655,7 @@ def codegen(x: Program): String = {
 
 def compile(x: String) = {
   try {
-    Process("rm output.cpp").!
+    Process("rm output.cpp || :").!
     // todo use os-lib
     val fileWriter = new FileWriter("output.cpp")
     fileWriter.write(x)
@@ -550,8 +665,7 @@ def compile(x: String) = {
       println("fail to write into target-file" + e.getMessage)
   }
   Process("clang-format --style='{ColumnLimit: 200}' -i output.cpp").!
-  Process("cat output.cpp").!
   println("compiling...")
-  Process("g++ -std=c++20 output.cpp").!
+  Process("g++ -g -o3 -std=c++20 -o output output.cpp -lmimalloc").!
   Process("cloc output.cpp").!
 }

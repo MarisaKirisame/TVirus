@@ -114,6 +114,9 @@ def pp_expr(x: Expr): Doc = {
     case Expr.Prim(l, op, r) =>
       pp_expr(l) <> " " <> pp_op(op) <> " " <> pp_expr(r)
 
+    case Expr.PrimCPS(l, op, r, k) =>
+      "cont_" <> pp_expr(k) <> Doc.bracketed(pp_expr(l) <> " " <> pp_op(op) <> " " <> pp_expr(r))
+
     case Expr.LitBool(x) =>
       if (x) { "True" }
       else { "False" }

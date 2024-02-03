@@ -28,4 +28,5 @@ let reducehalf = \f, l. match l with
 
 let mergesort = \l. reducehalf(merge, map(list1, l))
 
-let main = mergesort(Cons(4, Cons(2, Cons(3, Cons(1, Cons(5, Nil()))))))
+let repeat = \x, l. if (l == 0) { list1(x) } else { Cons(x, repeat(x, (l - 1))) }
+let main = mergesort(repeat(1, 20000))

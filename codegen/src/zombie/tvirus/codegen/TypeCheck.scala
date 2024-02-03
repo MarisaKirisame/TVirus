@@ -205,6 +205,12 @@ def tyck_expr(x: Expr, env: TyckEnv): Type = {
     case Expr.Prim(l, op, r) => {
       tyck_primop(recurse(l), op, recurse(r))
     }
+    case Expr.PrimCPS(l, op, r, k) => {
+      val out_ty = fresh_tv()
+      unify(recurse(k), Type.Func(Seq(tyck_primop(recurse(l), op, recurse(r))), out_ty), "")
+      out_ty
+    }
+
     case Expr.Fail() => {
       fresh_tv()
     }

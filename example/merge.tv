@@ -1,6 +1,0 @@
-let merge = \l. match l with
-    | Nil() -> Nil()
-    | Cons(x, Nil()) -> Nil()
-    | Cons(x, Cons(y, Nil())) -> Cons(P(x, y), merge(Cons(y, Nil())))
-
-let main = merge(Cons(1,Cons(2,Cons(3,Cons(4,Nil())))))

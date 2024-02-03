@@ -13,7 +13,8 @@ object parser extends AntlrModule with CommonModule {
 object codegen extends CommonModule {
   def ivyDeps = Agg(
     ivy"org.typelevel::cats-core:2.10.0",
-    ivy"org.typelevel::cats-collections-core:0.9.8"
+    ivy"org.typelevel::cats-collections-core:0.9.8",
+    ivy"com.lihaoyi::os-lib:0.9.3"
   )
 
   def moduleDeps = Seq(parser, prettier)

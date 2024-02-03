@@ -13,3 +13,5 @@ let apply = \ex, x. match P(ex, x) with
 let eval = \ex. match ex with
     | App(a, b) -> apply(eval(a), eval(b))
     | x -> x
+
+let main = eval(I())
