@@ -4,7 +4,7 @@ import os
 import time
 import subprocess
 
-default = {"program": "taba", "backend": NONDET("baseline", "zombie")}
+default = {"program": "rbt", "backend": NONDET("baseline", "zombie")}
 
 def get_time():
     return datetime.datetime.now().strftime("%m%d_%H%M%S")

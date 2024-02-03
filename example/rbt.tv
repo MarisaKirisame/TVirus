@@ -24,4 +24,5 @@ let insert = \x, t. match insertAux(x, t) with
 | Node(_, y, a, b) -> Node(Black(), y, a, b)
 | Leaf() -> Leaf()
 
-let main = insert(1, Leaf())
+let rbtAux = \i. if (i == 0) { Leaf() } else { insert(i, rbtAux((i - 1))) }
+let main = rbtAux(10000)

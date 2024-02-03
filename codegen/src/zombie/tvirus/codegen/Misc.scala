@@ -121,7 +121,7 @@ def check_dup(p: Program): Unit = {
   // println(show(pp(x)))
   x = simpl(unnest_match(x))
   println("unnest ok!!!")
-  println(pp(x).toString.length)
+  // println(pp(x).toString.length)
   // println(show(pp(x)))
   x = cps(x)
   println("cps done!!!")
@@ -130,7 +130,6 @@ def check_dup(p: Program): Unit = {
   // for ((k, v) <- tyck.var_map) {
   //  println((k, pp_type(v)))
   // }
-  assert(false)
   val cpp_code = codegen(x, backend=backend, log_path=log_path)
   compile(cpp_code)
 }

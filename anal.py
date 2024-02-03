@@ -44,4 +44,5 @@ for x in os.listdir(d):
 
 plt.legend()
 plt.savefig("./result.png")
+plt.title(res.config["program"])
 plt.show()

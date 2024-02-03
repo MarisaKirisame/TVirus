@@ -13,6 +13,7 @@ output.cpp
 unformatted.cpp
 output
 a.cpp
+result.png
 # Log file
 *.log
 

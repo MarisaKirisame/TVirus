@@ -4,11 +4,6 @@ let merge =
         | Cons(x, Nil()) -> Nil()
         | Cons(x, Cons(y, Nil())) -> Cons(P(x, y), merge(Cons(y, Nil())))
 
-let map =
-    \f, l. match l with
-           | Nil() -> Nil()
-           | Cons(x, xs) -> Cons(f(x), map(f, xs))
-
 let add =
     \l1, l2. match l1 with
              | Nil() -> Nil()

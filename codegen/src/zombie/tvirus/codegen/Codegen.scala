@@ -107,7 +107,7 @@ class ZombieBackEnd extends BackEnd {
         else { s"<${x.xs.mkString(", ")}>" }
       }> {
       size_t operator()(const auto& x) {
-
+        return 8;
       }
     };
     """
@@ -326,8 +326,10 @@ def get_adt_name(t: Type) = {
 def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
   val recurse = x => codegen_expr(x, env, false)
   val recurse_tail = x => codegen_expr(x, env, true)
+  val recurse_expr_tail = (x: Expr) => recurse_tail(x).toExpr
   val recurse_expr = (x: Expr) => recurse(x).toExpr
   val recurse_stmts = (x: Expr) => recurse(x).toStmts
+  val recurse_stmts_tail = (x: Expr) => recurse_tail(x).toStmts
   
   def codegen_binds(x: Seq[Value], y: Seq[String] => Value): Value = {
     env.BE.codegen_binds(is_tail, x, y)
@@ -351,7 +353,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
       Value.Expr(
         s"${get_adt_name(matched_type)}Match(" +
           s"${recurse_expr(matched)}, ${transformed_cases
-              .map((lhs, rhs) => s"[=](${lhs(1).map(n => "const auto& " ++ n).mkString(", ")}){${recurse_stmts(rhs)}}")
+              .map((lhs, rhs) => s"[=](${lhs(1).map(n => "const auto& " ++ n).mkString(", ")}){${recurse_stmts_tail(rhs)}}")
               .mkString(", ")})"
       )
     }
@@ -395,7 +397,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
     case Expr.Let(bs, body) => {
       Value.Stmts(s"""
         ${bs.map((n, v) => s"auto ${n} = ${recurse_expr(v)};").mkString("\n")} 
-        ${recurse_stmts(body)}
+        ${recurse_stmts_tail(body)}
       """)
     }
     case Expr.LitInt(x) => {
