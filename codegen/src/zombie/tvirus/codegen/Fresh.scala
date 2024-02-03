@@ -1,6 +1,7 @@
 package zombie.tvirus.codegen
 import zombie.tvirus.parser.*
 import collection.mutable
+import algebra.lattice.Bool
 
 var count = 0
 
@@ -9,6 +10,28 @@ def freshName() = {
   s"base$count"
 }
 
+def refresh_pat(
+    x: Pat,
+    remap: Map[String, String]
+): (Pat, Map[String, String]) = {
+  x match
+    case Pat.Wildcard => (Pat.Wildcard, remap)
+    case Pat.Cons(n, args) => {
+      val (new_args: Seq[Pat], new_remap: Map[String, String]) =
+        args.foldLeft((Seq[Pat](), remap))((left, p) => {
+          val res = refresh_pat(p, left(1))
+          (left(0) :+ res(0), res(1))
+        })
+      (Pat.Cons(n, new_args), new_remap)
+    }
+    case Pat.Var(x) => {
+      val f = freshName()
+      (Pat.Var(f), remap + (x -> f))
+    }
+}
+
+// careful! it might be tempting to make remap mutable to avoid plumbing,
+// but that is incorrect - doing so will make it not respect scoping rule.
 def refresh_expr(x: Expr, remap: Map[String, String]): Expr = {
   val recurse = x => refresh_expr(x, remap)
   x match {
@@ -39,7 +62,13 @@ def refresh_expr(x: Expr, remap: Map[String, String]): Expr = {
       Expr.Let(new_bindings, refresh_expr(body, new_remap))
     }
     case Expr.Match(x, cases) => {
-      Expr.Match(recurse(x), cases.map((lhs, rhs) => (lhs, recurse(rhs))))
+      Expr.Match(
+        recurse(x),
+        cases.map((lhs, rhs) => {
+          val (new_lhs, new_remap) = refresh_pat(lhs, remap)
+          (new_lhs, refresh_expr(rhs, new_remap))
+        })
+      )
     }
     case Expr.Cons(name, xs) => {
       Expr.Cons(name, xs.map(recurse))
@@ -62,7 +91,24 @@ def refresh_expr(x: Expr, remap: Map[String, String]): Expr = {
 }
 
 def refresh(p: Program): Program = {
-  Program(p.tds, p.vds.map(vd => ValueDecl(vd.x, refresh_expr(vd.b, Map()))))
+  val ret =
+    Program(p.tds, p.vds.map(vd => ValueDecl(vd.x, refresh_expr(vd.b, Map()))))
+  assert(is_fresh(ret))
+  ret
+}
+
+def pat_is_fresh(x: Pat, seen: mutable.Set[String]): Boolean = {
+  val recurse = x => pat_is_fresh(x, seen)
+  x match
+    case Pat.Wildcard      => true
+    case Pat.Cons(_, pats) => pats.forall(recurse)
+    case Pat.Var(n) =>
+      if (seen.contains(n)) {
+        false
+      } else {
+        seen.add(n)
+        true
+      }
 }
 
 def expr_is_fresh(x: Expr, seen: mutable.Set[String]): Boolean = {
@@ -81,7 +127,9 @@ def expr_is_fresh(x: Expr, seen: mutable.Set[String]): Boolean = {
       ret && recurse(body)
     }
     case Expr.Match(x, cases) => {
-      recurse(x) && cases.forall((lhs, rhs) => recurse(rhs))
+      recurse(x) && cases.forall((lhs, rhs) =>
+        pat_is_fresh(lhs, seen) && recurse(rhs)
+      )
     }
     case Expr.Let(bindings, body) => {
       var ret = true

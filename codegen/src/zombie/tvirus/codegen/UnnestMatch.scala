@@ -269,7 +269,5 @@ def unnest_match(p: Program): Program = {
     p.tds,
     p.vds.map(vd => ValueDecl(vd.x, unnest_match_expr(vd.b, env)))
   )
-  val ret = refresh(transformed)
-  println(show(pp(ret)))
-  ret
+  refresh(transformed)
 }

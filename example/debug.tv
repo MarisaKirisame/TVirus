@@ -1,3 +1,10 @@
-let taba = \x, y. if (x == 0) { y } else { y + taba(x - 1, y) }
+data Color = Red() | Black()
+data Rbt a = Node(Color, a, Rbt a, Rbt a) | Leaf()
 
-let main = taba(1000000, 3)
+let balance = \t. match t with
+| Node(a, b, c, d) -> Node(a, b, c, d)
+
+let insertAux = \t. match t with
+| Node(c, y, a, b) -> balance(Node(c, y, a, b)) 
+
+let main = insertAux(Leaf())

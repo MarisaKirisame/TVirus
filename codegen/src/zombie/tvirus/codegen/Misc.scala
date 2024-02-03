@@ -115,20 +115,22 @@ def check_dup(p: Program): Unit = {
 
   var x = drive(CharStreams.fromString(src))
   check_dup(x)
-  x = dce(cons(x))
+  x = refresh(dce(cons(x)))
   println(show(pp(x)))
-  x = reify_global_funcs(refresh(x))
-  println(show(pp(x)))
+  x = reify_global_funcs(x)
+  // println(show(pp(x)))
   x = simpl(unnest_match(x))
   println("unnest ok!!!")
-  println(show(pp(x)))
+  println(pp(x).toString.length)
+  // println(show(pp(x)))
   x = cps(x)
   println("cps done!!!")
-  println(show(pp(x)))
+  //println(show(pp(x)))
   val tyck = TyckEnv(x)
   // for ((k, v) <- tyck.var_map) {
   //  println((k, pp_type(v)))
   // }
+  assert(false)
   val cpp_code = codegen(x, backend=backend, log_path=log_path)
   compile(cpp_code)
 }
