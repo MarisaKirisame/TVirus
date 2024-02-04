@@ -108,7 +108,7 @@ def check_dup(p: Program): Unit = {
   p.vds.map(vd => register(vd.x))
 }
 
-@main def main(program: String, backend: String, log_path: String): Unit = {
+@main def main(program: String, backend: String, limit: Int, log_path: String): Unit = {
   val libdir = FileSystems.getDefault.getPath("library")
   val libcontents = Files.list(libdir).iterator().asScala.filter(Files.isRegularFile(_)).map((f) => os.read(os.Path(f, os.pwd))).reduce((a, b) => a + b)
   val src = libcontents + os.read(os.Path(s"example/${program}.tv", os.pwd))
@@ -130,6 +130,6 @@ def check_dup(p: Program): Unit = {
   // for ((k, v) <- tyck.var_map) {
   //  println((k, pp_type(v)))
   // }
-  val cpp_code = codegen(x, backend=backend, log_path=log_path)
+  val cpp_code = codegen(x, backend=backend, limit=limit, log_path=log_path)
   compile(cpp_code)
 }

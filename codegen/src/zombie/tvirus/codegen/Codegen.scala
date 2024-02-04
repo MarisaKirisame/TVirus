@@ -59,7 +59,7 @@ trait BackEnd {
   }
 }
 
-class ZombieBackEnd extends BackEnd {
+class ZombieBackEnd(limit: Int) extends BackEnd {
   def type_wrapper(x: String): String = {
     s"Zombie<${x}>"
   }
@@ -69,11 +69,21 @@ class ZombieBackEnd extends BackEnd {
   def header: String = {
     s"""
     #include <zombie/zombie.hpp>
+    #include <iostream>
     IMPORT_ZOMBIE(default_config)
 
     struct Init {
       Init() {
-        Trailokya::get_trailokya().each_tc = [](){ record(); };
+        Trailokya::get_trailokya().each_tc = [](){ 
+          ${if (limit == 0)  {
+             "" 
+            } else {
+              s"""while (allocated > ${limit}) {
+                Trailokya::get_trailokya().reaper.murder();
+              }"""
+            }}
+          record();
+        };
       }
     } init;
 
@@ -626,11 +636,11 @@ def codegen_vd(x: ValueDecl, env: CodeGenEnv): String = {
   }
 }
 
-def codegen(x: Program, backend: String, log_path: String): String = {
+def codegen(x: Program, backend: String, limit: Int, log_path: String): String = {
   val BE = if (backend == "baseline") { 
     NoZombieBackEnd()
    } else if (backend == "zombie") { 
-    ZombieBackEnd()
+    ZombieBackEnd(limit=limit)
   } else {
     assert(false)
   }
