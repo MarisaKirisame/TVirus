@@ -33,14 +33,14 @@ def is_var(t: Type) = {
   }
 }
 
-def consExpr(e: Expr, consDecls: Set[String]): Expr = {
-  val recurse = x => consExpr(x, consDecls)
+def consExpr(e: Expr, env: ConsEnv): Expr = {
+  val recurse = x => consExpr(x, env)
   e match
     case Expr.Prim(left, op, right) =>
       Expr.Prim(recurse(left), op, recurse(right))
     case Expr.App(f, xs) =>
       f match
-        case Expr.Var(name) if consDecls.contains(name) =>
+        case Expr.Var(name) if env.cons_decl.contains(name) =>
           Expr.Cons(name, xs.map(recurse))
         case _ => Expr.App(recurse(f), xs.map(recurse))
     case Expr.Abs(xs, b) => Expr.Abs(xs, recurse(b))
@@ -51,38 +51,42 @@ def consExpr(e: Expr, consDecls: Set[String]): Expr = {
         recurse(x),
         bs.map(b => (b(0), recurse(b(1))))
       )
-    case Expr.Var(n)      => Expr.Var(n)
+    case Expr.Var(n) =>
+      if (env.funcs_decl.contains(n)) { Expr.GVar(n) }
+      else { Expr.Var(n) }
     case Expr.LitInt(x)   => Expr.LitInt(x)
     case Expr.LitBool(x)  => e
     case Expr.If(i, t, e) => Expr.If(recurse(i), recurse(t), recurse(e))
 }
 
-def consType(x: Type, decls: Set[String]): Type = {
-  val recurse = x => consType(x, decls)
+def consType(x: Type, env: ConsEnv): Type = {
+  val recurse = x => consType(x, env)
   resolve(x) match {
     case v @ Type.Var(_, _) =>
-      if (decls.contains(v.name)) { Type.TyCons(v.name) }
+      if (env.tcons_decl.contains(v.name)) { Type.TyCons(v.name) }
       else { v }
     case Type.App(f, xs) => Type.App(recurse(f), xs.map(recurse))
     case Type.Prim(t)    => Type.Prim(t)
   }
 }
-def cons(p: Program): Program = {
-  val consDecls: Set[String] = p.tds.foldLeft(Set.empty)((consDecls, td) =>
+class ConsEnv(p: Program) {
+  val cons_decl: Set[String] = p.tds.foldLeft(Set.empty)((consDecls, td) =>
     consDecls ++ td.cons.map(_.name)
   )
-  val tconsDecls: Set[String] = p.tds.map(_.name).toSet
+  val tcons_decl: Set[String] = p.tds.map(_.name).toSet
+  val funcs_decl: Set[String] = p.vds.map(_.x).toSet
+}
+def cons(p: Program): Program = {
+  val env = ConsEnv(p)
   Program(
     p.tds.map(td =>
       TypeDecl(
         td.name,
         td.xs,
-        td.cons.map(cb =>
-          CBind(cb.name, cb.args.map(t => consType(t, tconsDecls)))
-        )
+        td.cons.map(cb => CBind(cb.name, cb.args.map(t => consType(t, env))))
       )
     ),
-    p.vds.map(vd => vd.copy(b = consExpr(vd.b, consDecls)))
+    p.vds.map(vd => vd.copy(b = consExpr(vd.b, env)))
   )
 }
 
@@ -108,9 +112,34 @@ def check_dup(p: Program): Unit = {
   p.vds.map(vd => register(vd.x))
 }
 
-@main def main(program: String, backend: String, limit: Int, log_path: String): Unit = {
+def free_vars(x: Expr): Set[String] = {
+  val recurse = x => free_vars(x)
+  x match
+    case Expr.Var(n) => Set(n)
+    case Expr.App(f, x) =>
+      recurse(f).union(
+        x.map(recurse).foldLeft(Set[String]())((l, r) => l.union(r))
+      )
+    case Expr.PrimCPS(l, op, r, k) =>
+      recurse(l).union(recurse(r)).union(recurse(k))
+    case Expr.Abs(l, r) => recurse(r).diff(Set(l: _*))
+    case Expr.Fail() | Expr.GVar(_) | Expr.LitInt(_) => Set()
+}
+
+@main def main(
+    program: String,
+    backend: String,
+    limit: Long,
+    log_path: String
+): Unit = {
   val libdir = FileSystems.getDefault.getPath("library")
-  val libcontents = Files.list(libdir).iterator().asScala.filter(Files.isRegularFile(_)).map((f) => os.read(os.Path(f, os.pwd))).reduce((a, b) => a + b)
+  val libcontents = Files
+    .list(libdir)
+    .iterator()
+    .asScala
+    .filter(Files.isRegularFile(_))
+    .map((f) => os.read(os.Path(f, os.pwd)))
+    .reduce((a, b) => a + b)
   val src = libcontents + os.read(os.Path(s"example/${program}.tv", os.pwd))
 
   var x = drive(CharStreams.fromString(src))
@@ -125,11 +154,12 @@ def check_dup(p: Program): Unit = {
   // println(show(pp(x)))
   x = cps(x)
   println("cps done!!!")
-  //println(show(pp(x)))
+  // println(show(pp(x)))
   val tyck = TyckEnv(x)
   // for ((k, v) <- tyck.var_map) {
   //  println((k, pp_type(v)))
   // }
-  val cpp_code = codegen(x, backend=backend, limit=limit, log_path=log_path)
+  val cpp_code =
+    codegen(x, backend = backend, limit = limit, log_path = log_path)
   compile(cpp_code)
 }

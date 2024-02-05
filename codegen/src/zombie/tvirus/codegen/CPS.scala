@@ -35,6 +35,7 @@ def cps_exprs(x: Seq[Expr], k: Seq[Expr] => Expr): Expr = {
 def cps_expr(x: Expr, k: Cont): Expr = {
   x match {
     case v @ Expr.Var(_) => k.toHO(v)
+    case v @ Expr.GVar(_) => k.toHO(v)
     case Expr.Abs(xs, b) => {
       val k_ = freshName()
       k.toHO(

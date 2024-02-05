@@ -84,6 +84,7 @@ def pp_expr(x: Expr): Doc = {
       )
 
     case Expr.Var(y)       => y
+    case Expr.GVar(y)       => y
     case Expr.InlineVar(y) => y
     case Expr.Match(y, cases) =>
       Doc.bracketed(

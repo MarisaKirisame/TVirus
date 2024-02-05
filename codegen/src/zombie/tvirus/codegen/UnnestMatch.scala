@@ -240,6 +240,7 @@ def unnest_match_expr(x: Expr, env: UnnestMatchEnv): Expr = {
   val recurse = x => unnest_match_expr(x, env)
   x match {
     case Expr.Var(v)    => Expr.Var(v)
+    case Expr.GVar(v)    => Expr.GVar(v)
     case Expr.Abs(x, b) => Expr.Abs(x, recurse(b))
     case Expr.Match(x, cases) => {
       val x_bind = freshName()
@@ -260,6 +261,7 @@ def unnest_match_expr(x: Expr, env: UnnestMatchEnv): Expr = {
         xs.map((name, expr) => (name, recurse(expr))),
         recurse(body)
       )
+    case Expr.Fail() => Expr.Fail()
   }
 }
 
