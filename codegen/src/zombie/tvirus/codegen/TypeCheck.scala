@@ -150,8 +150,17 @@ def tyck_primop(l: Type, op: PrimOp, r: Type): Type = {
 
 def tyck_expr(x: Expr, env: TyckEnv): Type = {
   val recurse = y => tyck_expr(y, env)
-  val t = x match {
+  val t: Type = x match {
     case Expr.Var(v) => {
+      env.var_map.get(v) match {
+        case Some(t) => instantiate(t)
+        case None => {
+            println(s"not in scope: ${v}")
+            assert(false)
+          }
+        }
+      }
+    case Expr.GVar(v) => {
       env.var_map.get(v) match {
         case Some(t) => instantiate(t)
         case None => {
@@ -159,7 +168,7 @@ def tyck_expr(x: Expr, env: TyckEnv): Type = {
             tyck_vd(env.unvisited(v), env)
             recurse(x)
           } else {
-            println(s"not in scope: ${v}")
+            println("???")
             assert(false)
           }
         }

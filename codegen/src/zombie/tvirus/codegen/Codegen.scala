@@ -45,21 +45,21 @@ trait BackEnd {
   def header: String
   def handle_constructor(x: TypeDecl): String
   def codegen_binds_raw(x: Seq[String], y: Seq[String] => Value): Value
-  def codegen_binds(is_tail: Boolean, x: Seq[Value], y: Seq[String] => Value): Value = {
+  def codegen_binds(is_tail: Boolean, captured: Set[String], x: Seq[Value], y: Seq[String] => Value): Value = {
     if (is_tail) {
       val xname = x.map(_ => freshName())
-      val args = s"[=](${xname.map(n => s"const auto& ${n}").mkString(", ")}){ ${y(xname).toStmts} }" +: x.map(_.toExpr)
+      val args = s"[${captured.mkString(",")}](${xname.map(n => s"const auto& ${n}").mkString(", ")}){ ${y(xname).toStmts} }" +: x.map(_.toExpr)
       Value.Expr(s"TailCall(${args.mkString(", ")})")
     } else {
       codegen_binds_raw(x.map(_.toExpr), y)
     }
   }
-  def codegen_bind(is_tail: Boolean, x: Value, y: String => Value): Value = {
-    codegen_binds(is_tail, Seq(x), x_ => y(x_(0)))
+  def codegen_bind(is_tail: Boolean, captured: Set[String], x: Value, y: String => Value): Value = {
+    codegen_binds(is_tail, captured, Seq(x), x_ => y(x_(0)))
   }
 }
 
-class ZombieBackEnd(limit: Int) extends BackEnd {
+class ZombieBackEnd(limit: Long) extends BackEnd {
   def type_wrapper(x: String): String = {
     s"Zombie<${x}>"
   }
@@ -341,11 +341,11 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
   val recurse_stmts = (x: Expr) => recurse(x).toStmts
   val recurse_stmts_tail = (x: Expr) => recurse_tail(x).toStmts
   
-  def codegen_binds(x: Seq[Value], y: Seq[String] => Value): Value = {
-    env.BE.codegen_binds(is_tail, x, y)
+  def codegen_binds(captured: Set[String], x: Seq[Value], y: Seq[String] => Value): Value = {
+    env.BE.codegen_binds(is_tail, captured, x, y)
   }
-  def codegen_bind(x: Value, y: String => Value): Value = {
-    codegen_binds(Seq(x), x_ => y(x_(0)))
+  def codegen_bind(captured: Set[String], x: Value, y: String => Value): Value = {
+    codegen_binds(captured, Seq(x), x_ => y(x_(0)))
   }
 
   x match {
@@ -367,7 +367,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
               .mkString(", ")})"
       )
     }
-    case Expr.App(Expr.Var(f), xs) => {
+    case Expr.App(Expr.GVar(f), xs) => {
       if (env.global_funcs.contains(f)) {
         Value.Expr(f + bracket(xs.map(recurse_expr).mkString(", ")))
       } else {
@@ -418,11 +418,13 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
     }
     case Expr.If(i, t, e) =>
       codegen_bind(
+        free_vars(t).union(free_vars(e)),
         recurse(i),
         i_ => Value.Expr(s"(${i_} ? ${recurse_tail(t)} : ${recurse_tail(e)})")
       )
     case Expr.Prim(l, op, r) => {
       codegen_binds(
+        Set(),
         Seq(recurse(l), recurse(r)),
         xs => {
           env.BE.val_wrapper(
@@ -434,6 +436,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
     }
     case Expr.PrimCPS(l, op, r, k) => {
       codegen_binds(
+        Set(),
         Seq(recurse(l), recurse(r), recurse(k)),
         xs => {
           val t = resolve(env.tyck.expr_map(k)) match {
@@ -546,6 +549,7 @@ def codegen_match(x: TypeDecl, env: CodeGenEnv): String = {
   header + cbracket(
     env.BE.codegen_bind(
       true,
+      Set(),
       Value.Expr(matched_name),
       matched =>
         Value.Stmts(
@@ -636,7 +640,7 @@ def codegen_vd(x: ValueDecl, env: CodeGenEnv): String = {
   }
 }
 
-def codegen(x: Program, backend: String, limit: Int, log_path: String): String = {
+def codegen(x: Program, backend: String, limit: Long, log_path: String): String = {
   val BE = if (backend == "baseline") { 
     NoZombieBackEnd()
    } else if (backend == "zombie") { 
@@ -675,7 +679,8 @@ def compile(x: String) = {
       println("fail to write into target-file" + e.getMessage)
   }
   Process("clang-format --style='{ColumnLimit: 200}' -i output.cpp").!
+  Process("cat output.cpp").!
   println("compiling...")
-  Process("g++ -g -o3 -std=c++20 -o output output.cpp -lmimalloc").!
+  Process("g++ -g -O3 -std=c++20 -o output output.cpp -lmimalloc").!
   Process("cloc output.cpp").!
 }

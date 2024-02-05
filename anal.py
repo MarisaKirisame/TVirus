@@ -11,6 +11,12 @@ class Result:
     def __str__(self):
         return f"Result({self.config})"
 
+def try_read_file(path):
+    if os.path.isfile(path):
+        return read_file(path)
+    else:
+        return ""
+
 def read_file(path):
     with open(path, "r") as f:
         return f.read()
@@ -24,7 +30,7 @@ def read(path):
     def failed():
         print(f"{path} failed")
         print(''.join(readlines_file(f"{path}/output")[-10:]))
-    if read_file(f"{path}/returncode") == "0":
+    if try_read_file(f"{path}/returncode") == "0":
         with open(f"{path}/log", "r") as f:
             for line in f:
                 result.append(json.loads(line))
@@ -32,7 +38,7 @@ def read(path):
     else:
         failed()
         ok = False
-        print(read_file(f"{path}/returncode"))
+        print(try_read_file(f"{path}/returncode"))
     with open(f"{path}/config", "r") as f:
         lines = f.readlines()
         assert len(lines) == 1

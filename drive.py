@@ -11,6 +11,10 @@ zombie_backend = {
     {"name": "RelToZombie",
      "ratio": NONDET(0.5, 0.3, 0.2, 0.1, 0.05)})}
 
+zombie_backend = {
+  "name": "zombie",
+  "limit": NONDET({"name": "no"})}
+
 default = {
   "program": "taba",
   "backend": NONDET(

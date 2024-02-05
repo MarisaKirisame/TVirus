@@ -36,6 +36,7 @@ def refresh_expr(x: Expr, remap: Map[String, String]): Expr = {
   val recurse = x => refresh_expr(x, remap)
   x match {
     case Expr.Var(n)       => Expr.Var(remap.get(n).getOrElse(n))
+    case Expr.GVar(n)      => Expr.GVar(n)
     case Expr.InlineVar(n) => Expr.InlineVar(remap.get(n).getOrElse(n))
     case Expr.Abs(bindings, body) => {
       // ensure there are not duplicate values in bindings
@@ -149,6 +150,7 @@ def expr_is_fresh(x: Expr, seen: mutable.Set[String]): Boolean = {
     case Expr.If(i, t, e)    => recurse(i) && recurse(t) && recurse(e)
     case Expr.Prim(l, op, r) => recurse(l) && recurse(r)
     case Expr.Fail()         => true
+    case Expr.GVar(_)        => true
   }
 }
 
