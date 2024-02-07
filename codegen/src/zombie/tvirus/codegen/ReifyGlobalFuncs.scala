@@ -11,11 +11,10 @@ def member[T](x: T, s: Seq[T]): Boolean = {
 }
 
 def function_type_p(t: Type): Option[Seq[String]] = {
-  t match {
+  resolve(t) match {
     case Type.Prim(pt) => None
     case Type.Func(xs, r) => Some(xs.map(_ => freshName()))
-    case Type.Var(name, Some(ty)) => function_type_p(ty)
-    case Type.Var(name, None) => None
+    case Type.Var(name, _) => None
     case Type.App(f, xs) => function_type_p(f)
     case Type.TyCons(name) => None
     case Type.TypeScheme(xs, t) => function_type_p(t)
@@ -30,7 +29,7 @@ def reify_global_funcs_aux(e: Expr, g: Seq[String], t: TyckEnv): Expr = {
     case Expr.Var(name) => Expr.Var(name)
     case Expr.GVar(name) =>
       if (member(name, g)) {
-        function_type_p(t.var_map(name)) match {
+        function_type_p(t.gvar_map(name)) match {
           case Some(formals) => {
             Expr.Abs(
               formals,

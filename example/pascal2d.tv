@@ -24,9 +24,9 @@ let pascal2dNext =
 let pascal2d =
     \m. match m with
         | Nil() -> 0
-        | Cons(l, Nil()) -> match l with
+        | Cons(l, Nil()) -> ((match l with
                             | Nil() -> 0
-                            | Cons(x, xs) -> x
+                            | Cons(x, xs) -> x))
         | ls -> pascal2d(pascal2dNext(ls))
 
 let main = pascal2d(Cons(Cons(1,Cons(2,Nil())), Cons(Cons(3,Cons(4,Nil())), Nil())))

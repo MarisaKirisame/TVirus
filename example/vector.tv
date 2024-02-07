@@ -1,6 +1,6 @@
 data Vector = Empty() | Leaf(Int) | Branch(Int, Vector, Vector, Vector, Vector)
 
-let length = \t . match t with
+let vector_length = \t . match t with
 | Empty()               -> 0
 | Leaf(_)               -> 1
 | Branch(n, _, _, _, _) -> n
@@ -31,9 +31,9 @@ let build = \f, n . buildAux(f, 0, n - 1)
 let access = \t, x . match t with
 | Leaf(a) -> a
 | Branch(_, t1, t2, t3, t4) ->
-  let s1 = length(t1) in
-  let s2 = length(t2) in
-  let s3 = length(t3)
+  let s1 = vector_length(t1) in
+  let s2 = vector_length(t2) in
+  let s3 = vector_length(t3)
   in if (x < s1) {
     access(t1, x)
   } else { if (x < (s1 + s2)) {
@@ -47,9 +47,9 @@ let access = \t, x . match t with
 let modify = \t, x, f . match t with
 | Leaf(a) -> Leaf(f(a))
 | Branch(n, t1, t2, t3, t4) ->
-  let s1 = length(t1) in
-  let s2 = length(t2) in
-  let s3 = length(t3)
+  let s1 = vector_length(t1) in
+  let s2 = vector_length(t2) in
+  let s3 = vector_length(t3)
   in if (x < s1) {
     Branch(n, modify(t1, x, f), t2, t3, t4)
   } else { if (x < (s1 + s2)) {

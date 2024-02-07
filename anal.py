@@ -62,10 +62,57 @@ def plot(result):
     plt.ylabel("space (MB)")
 
 d = "log/" + sorted(os.listdir("log"))[-1]
+
+runs = []
+
 for x in os.listdir(d):
     res = read(f"{d}/{x}")
     if res.ok:
-        plot(res)
+        runs.append(res)
+
+zombie_baseline_time = None
+zombie_baseline_space = None
+
+def get_spacetime(r):
+    start_time = None
+    space = None
+    time = None
+    for l in r.log:
+        if start_time is None:
+            space = 0
+            start_time = l["timestamp"]
+        space = max(space, l["allocated"])
+        time = l["timestamp"] - start_time
+    return (space, time)
+
+for r in runs:
+    print(r.config)
+    if r.config["backend"]["name"] == "zombie" and r.config["backend"]["limit"]["name"] == "no":
+        zombie_baseline_space, zombie_baseline_time = get_spacetime(r)
+
+zombie_points = []
+baseline_points = []
+
+for r in runs:
+    space, time = get_spacetime(r)
+    space = space / zombie_baseline_space
+    time = time / zombie_baseline_time
+    if r.config["backend"]["name"] == "zombie":
+        zombie_points.append((space, time))
+    else:
+        baseline_points.append((space, time))
+
+x, y = zip(*zombie_points)
+plt.scatter(x, y, label="zombie")
+
+x, y = zip(*baseline_points)
+plt.scatter(x, y, label="baseline")
+
+plt.xscale('log')
+plt.xlabel("space")
+
+plt.yscale('log')
+plt.ylabel("time")
 
 plt.legend()
 plt.savefig("./result.png")

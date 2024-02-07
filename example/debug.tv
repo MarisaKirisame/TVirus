@@ -1,27 +1,32 @@
-data Color = Red() | Black()
-data Rbt a = Node(Color, a, Rbt a, Rbt a) | Leaf()
+let merge =
+    \l. match l with
+        | Nil() -> Nil()
+        | Cons(x, Nil()) -> Nil()
+        | Cons(x, Cons(y, Nil())) -> Cons(P(x, y), merge(Cons(y, Nil())))
 
-let member = \x, t. match t with
-| Leaf() -> True
-| Node(_, y, l, r) -> if (x < y) { member(x, l) } else { if (x > y) { member(x, r) } else { True } }
+let add =
+    \l1, l2. match l1 with
+             | Nil() -> Nil()
+             | Cons(x, xs) -> match l2 with
+                              | Nil() -> Nil()
+                              | Cons(y, ys) -> Cons(x + y, add(xs, ys))
 
-let balance = \t. match t with
-| Node(Black(), z, Node(Red(), y, Node(Red(), x, a, b), c), d) -> Node(Red(), y, Node(Black(), x, a, b), Node(Black(), z, c, d))
-| Node(Black(), z, Node(Red(), x, a, Node(Red(), y, b, c)), d) -> Node(Red(), y, Node(Black(), x, a, b), Node(Black(), z, c, d))
-| Node(Black(), x, a, Node(Red(), z, Node(Red(), y, b, c), d)) -> Node(Red(), y, Node(Black(), x, a, b), Node(Black(), z, c, d))
-| Node(Black(), x, a, Node(Red(), y, b, Node(Red(), z, c, d))) -> Node(Red(), y, Node(Black(), x, a, b), Node(Black(), z, c, d))
-| x -> x
+let pascal2dNext = 
+    \m. match m with
+        | Nil() -> Nil()
+        | Cons(l, Nil()) -> Nil()
+        | Cons(l1, Cons(l2, ls)) -> Cons(add(map((\p. match p with
+                                                      | P(x, y) -> x + y), merge(l1))
+                                            ,map((\p. match p with
+                                                      | P(x, y) -> x + y), merge(l2)))
+                                        ,pascal2dNext(Cons(l2, ls)))
 
-let insertAux = \x, t. match t with
-| Leaf() -> Node(Red(), x, Leaf(), Leaf())
-| Node(c, y, a, b) ->
-  if (x < y) { balance(Node(c, y, insertAux(x, a), b)) }
-  else {
-    if (x > y) { balance(Node(c, y, a, insertAux(x, b))) }
-    else { Node(c, y, a, b) }}
+let pascal2d =
+    \m. match m with
+        | Nil() -> 0
+        | Cons(l, Nil()) -> (match l with
+                            | Nil() -> 0
+                            | Cons(x, xs) -> x)
+        | ls -> pascal2d(pascal2dNext(ls))
 
-let insert = \x, t. match insertAux(x, t) with
-| Node(_, y, a, b) -> Node(Black(), y, a, b)
-| Leaf() -> Leaf()
-
-let main = insert(1, Leaf())
+let main = pascal2d(Cons(Cons(1,Cons(2,Nil())), Cons(Cons(3,Cons(4,Nil())), Nil())))
