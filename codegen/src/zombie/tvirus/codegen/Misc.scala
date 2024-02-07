@@ -3,7 +3,6 @@ import org.antlr.v4.runtime.CharStreams
 import java.io.FileWriter
 import java.io.IOException
 import zombie.tvirus.parser.*
-import zombie.tvirus.prettier.*
 import java.nio.file.{FileSystems, Files}
 import collection.JavaConverters.asScalaIteratorConverter
 import collection.mutable

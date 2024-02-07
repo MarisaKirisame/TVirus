@@ -4,66 +4,122 @@ import cats.Eval
 import cats.kernel.Order
 import cats.syntax.partialOrder.*
 
+import com.dynatrace.hash4j.hashing.*
+
 import scala.collection.mutable
-
-enum Doc:
-  case Text(s: String)
-  case Newline(s: Option[String])
-  case Nest(n: Int, d: Doc)
-  case Align(d: Doc)
-  case Concat(a: Doc, b: Doc)
-  case Choice(a: Doc, b: Doc)
-  case Fail
-
-  def <>(other: Doc) = Concat(this, other)
-  def <|>(other: Doc) = (this, other) match
-    case (Fail, _) => other
-    case (_, Fail) => this
-    case _         => Choice(this, other)
-  def <+>(other: Doc) = this <> Align(other)
-  def <%>(other: Doc) = this <> Doc.HardNl <> other
-  def <->(other: Doc) = Doc.Flatten(this) <+> other
-
-  def resolved[C: Cost]: String =
-    Resolver().resolve(this, 0, 0).layouted.mkString("\n")
 
 private def memoize[I, O](f: I => O): I => O = new mutable.HashMap[I, O]() {
   override def apply(key: I) = getOrElseUpdate(key, f(key))
 }
 
+enum Doc:
+  case Text(s: String)
+  case Nl()
+  case Nest(n: Int, d: Doc)
+  case Align(d: Doc)
+  case Concat(a: Doc, b: Doc)
+  case Choice(a: Doc, b: Doc)
+
+  private lazy val hashKey = {
+    val stream = Hashing.wyhashFinal4().hashStream()
+    this match
+      case Text(s)    => stream.putString(s).getAsInt()
+      case Nl()       => stream.putChar('\n').putInt(2).getAsInt()
+      case Nest(n, d) => stream.putInt(n).putInt(d.hashCode()).getAsInt()
+      case Align(d)   => stream.putInt(d.hashCode()).getAsInt()
+      case Concat(a, b) =>
+        stream.putInt(1).putInt(a.hashCode()).putInt(b.hashCode()).getAsInt()
+      case Choice(a, b) =>
+        stream.putInt(2).putInt(a.hashCode()).putInt(b.hashCode()).getAsInt()
+  }
+
+  override def hashCode(): Int = hashKey
+
+  override def equals(x: Any): Boolean = {
+    if (!x.isInstanceOf[Doc]) {
+      false
+    } else {
+      (this, x) match
+        case (Text(s1), Text(s2))             => s1.equals(s2)
+        case (Nl(), Nl())                     => true
+        case (Nest(n1, d1), Nest(n2, d2))     => n1 == n2 && d1.equals(d2)
+        case (Align(d1), Align(d2))           => d1.equals(d2)
+        case (Concat(a1, b1), Concat(a2, b2)) => a1.equals(a2) && b1.equals(b2)
+        case (Choice(a1, b1), Choice(a2, b2)) => a1.equals(a2) && b1.equals(b2)
+        case _                                => false
+    }
+  }
+
+  private lazy val measureCache: mutable.HashMap[(Int, Int), Any] =
+    mutable.HashMap.empty
+
+  def measured[C: Cost](c: Int, i: Int) =
+    measureCache
+      .getOrElseUpdate((c, i), measure(this, c, i))
+      .asInstanceOf[Measure[C]]
+
+  private lazy val resolveCache: mutable.HashMap[(Int, Int), Any] =
+    mutable.HashMap.empty
+
+  def resolved[C: Cost](c: Int, i: Int) =
+    resolveCache
+      .getOrElseUpdate((c, i), resolve(this, c, i))
+      .asInstanceOf[MeasureSet[C]]
+
+given Conversion[String, Doc] = Doc.text
+
 object Doc:
-  val Nl = Newline(Some(" "))
-  val Break = Newline(Some(""))
-  val HardNl = Newline(None)
-  val SBreak = " " <|> Doc.Nl
+  val hashTable: mutable.WeakHashMap[Doc, Doc] = mutable.WeakHashMap()
 
-  def Group(d: Doc) = d <|> Flatten(d)
+  extension (d: Doc) def hashConsed = hashTable.getOrElseUpdate(d, d)
 
-  lazy val Flatten: Doc => Doc = memoize { ds =>
+  def text(s: String) = Doc.Text(s).hashConsed
+  def nl = Doc.Nl().hashConsed
+  def nest(n: Int, d: Doc) = Doc.Nest(n, d).hashConsed
+  def align(d: Doc) = Doc.Align(d).hashConsed
+  def concat(a: Doc, b: Doc) = Doc.Concat(a, b).hashConsed
+  def choice(a: Doc, b: Doc) = Doc.Choice(a, b).hashConsed
+
+  extension (d: Doc)
+    def <>(other: Doc) = concat(d, other)
+    def <|>(other: Doc) = choice(d, other)
+    def <+>(other: Doc) = d <> align(other)
+    def <\>(other: Doc) = d <> nl <> other
+    def printed(w: Int = 80) = {
+      hashTable.clear()
+      d.resolved(0, 0)(using Cost.sumOfSquared(w)).layouted.mkString("\n")
+    }
+
+  def sbreak = " " <|> Doc.nl
+
+  def group(d: Doc) = d <|> flatten(d)
+
+  def vcat(c: Iterable[Doc]) = c.reduceOption(_ <\> _).getOrElse(text(""))
+
+  lazy val flatten: Doc => Doc = memoize { ds =>
     ds match
-      case Fail | Text(_)   => ds
-      case Newline(None)    => Fail
-      case Newline(Some(s)) => Text(s)
-      case Nest(n, d)       => Flatten(d)
-      case Align(d)         => Flatten(d)
-      case Concat(a, b)     => Flatten(a) <> Flatten(b)
-      case Choice(a, b)     => Flatten(a) <|> Flatten(b)
+      case Text(_)      => ds
+      case Nl()         => " "
+      case Nest(n, d)   => flatten(d)
+      case Align(d)     => flatten(d)
+      case Concat(a, b) => flatten(a) <> flatten(b)
+      case Choice(a, b) => flatten(a) <|> flatten(b)
   }
 
-  def hcat(ds: Iterable[Doc]) = ds.reduceOption(_ <-> _).getOrElse(Text(""))
-  def vcat(ds: Iterable[Doc]) = ds.reduceOption(_ <%> _).getOrElse(Text(""))
-
-  def bracketed(d: Doc, o: String = "(", e: String = ")", space: Boolean = false) = {
-    val spc = if (space) { " " } else { "" }
-    (o <> spc <> d <> spc <> e) <|> (o <> Nest(2, Doc.Nl <> d) <> Doc.Nl <> e)
+  def bracketed(
+      d: Doc,
+      o: String = "(",
+      e: String = ")",
+      space: Boolean = false
+  ) = {
+    val spc = if (space) { " " }
+    else { "" }
+    (o <> spc <> d <> spc <> e) <|> (o <> nest(2, nl <> d) <> nl <> e)
   }
-    
 
-given Conversion[String, Doc] = Doc.Text.apply
-
-def layout(ds: Doc, c: Int, i: Int): List[String] = ds match
+def layout[C: Cost](ds: Doc, c: Int, i: Int): List[String] = ds match
   case Doc.Text(s)    => List(s)
-  case Doc.Newline(_) => List("", " " * i)
+  case Doc.Nl()       => List("", " " * i)
   case Doc.Nest(n, d) => layout(d, c, i + n)
   case Doc.Align(d)   => layout(d, c, c)
   case Doc.Concat(a, b) => {
@@ -76,11 +132,11 @@ def layout(ds: Doc, c: Int, i: Int): List[String] = ds match
     la.init :+ (la.last ++ lb.head) :++ lb.tail
   }
   case Doc.Choice(a, b) => throw new UnsupportedOperationException
-  case Doc.Fail         => throw new UnsupportedOperationException
 
 trait Cost[T] extends Order[T]:
   val nl: T
   def text(c: Int, l: Int): T
+  val cw: Int
 
   extension (a: T) def +(b: T): T
 
@@ -109,6 +165,7 @@ object Cost:
       }
     }
 
+    override val cw: Int = 100
     extension (a: (Int, Int))
       override def +(b: (Int, Int)): (Int, Int) = (a(0) + b(0), a(1) + b(1))
   }
@@ -118,25 +175,24 @@ case class Measure[C: Cost](last: Int, cost: C, doc: Doc):
     Measure(other.last, cost + other.cost, doc <> other.doc)
 
   def nested(n: Int) =
-    Measure(last, cost, Doc.Nest(n, doc))
+    Measure(last, cost, Doc.nest(n, doc))
 
   def aligned =
-    Measure(last, cost, Doc.Align(doc))
+    Measure(last, cost, Doc.align(doc))
 
   def <=(other: Measure[C]): Boolean = last <= other.last && cost <= other.cost
 
 def measure[C: Cost](ds: Doc, c: Int, i: Int): Measure[C] = ds match
   case Doc.Text(s) => Measure(c + s.length(), Cost[C].text(c, s.length()), ds)
-  case Doc.Newline(_) => Measure(i, Cost[C].nl + Cost[C].text(0, i), ds)
-  case Doc.Nest(n, d) => measure(d, c, i).nested(n)
-  case Doc.Align(d)   => measure(d, c, c).aligned
+  case Doc.Nl()    => Measure(i, Cost[C].nl + Cost[C].text(0, i), ds)
+  case Doc.Nest(n, d) => d.measured(c, i).nested(n)
+  case Doc.Align(d)   => d.measured(c, c).aligned
   case Doc.Concat(a, b) => {
-    val ma = measure(a, c, i)
-    val mb = measure(b, ma.last, i)
+    val ma = a.measured(c, i)
+    val mb = b.measured(ma.last, i)
     ma concat mb
   }
   case Doc.Choice(a, b) => throw new UnsupportedOperationException
-  case Doc.Fail         => throw new UnsupportedOperationException
 
 enum MeasureSet[C: Cost]:
   case Tainted(m: Eval[Measure[C]])(using Cost[C])
@@ -186,43 +242,32 @@ def concatMeasures[C: Cost](
       m1 :: concatMeasures(a, tl1)
     }
 
-class Resolver[C: Cost](
-    w: Int = 100
-) {
-  private val resolveCache: mutable.HashMap[(Doc, Int, Int), MeasureSet[C]] =
-    mutable.HashMap.empty
-  private val resolveConcatCache
-      : mutable.HashMap[(Measure[C], Doc, Int), MeasureSet[C]] =
-    mutable.HashMap.empty
-
-  def resolve(ds: Doc, c: Int, i: Int) =
-    resolveCache.getOrElseUpdate((ds, c, i), resolveImpl(ds, c, i))
-
-  private def resolveImpl(ds: Doc, c: Int, i: Int): MeasureSet[C] = ds match
+def resolve[C: Cost](ds: Doc, c: Int, i: Int): MeasureSet[C] =
+  ds match
     case Doc.Text(s) =>
-      if (c + s.length() <= w && i <= w) {
-        MeasureSet.Set(List(measure(ds, c, i)))
+      if (c + s.length() <= Cost[C].cw && i <= Cost[C].cw) {
+        MeasureSet.Set(List(ds.measured(c, i)))
       } else {
-        MeasureSet.Tainted(Eval.later(measure(ds, c, i)))
+        MeasureSet.Tainted(Eval.later(ds.measured(c, i)))
       }
-    case Doc.Newline(_) =>
-      if (c <= w && i <= w) {
-        MeasureSet.Set(List(measure(ds, c, i)))
+    case Doc.Nl() =>
+      if (c <= Cost[C].cw && i <= Cost[C].cw) {
+        MeasureSet.Set(List(ds.measured(c, i)))
       } else {
-        MeasureSet.Tainted(Eval.later(measure(ds, c, i)))
+        MeasureSet.Tainted(Eval.later(ds.measured(c, i)))
       }
     case Doc.Nest(n, d) =>
-      resolve(d, c, i + n).lifted(_.nested(n))
+      d.resolved(c, i + n).lifted(_.nested(n))
     case Doc.Align(d) =>
-      if (i <= w) {
-        resolve(d, c, c).lifted(_.aligned)
+      if (i <= Cost[C].cw) {
+        d.resolved(c, c).lifted(_.aligned)
       } else {
-        resolve(d, c, c).tainted.lifted(_.aligned)
+        d.resolved(c, c).tainted.lifted(_.aligned)
       }
     case Doc.Concat(a, b) => {
-      resolve(a, c, i) match
+      a.resolved(c, i) match
         case MeasureSet.Tainted(ma) =>
-          resolve(b, ma.value.last, i).tainted match
+          b.resolved(ma.value.last, i).tainted match
             case MeasureSet.Tainted(mb) =>
               MeasureSet.Tainted(Eval.later(ma.value concat mb.value))
             case _ => throw new IllegalStateException
@@ -233,15 +278,10 @@ class Resolver[C: Cost](
             .getOrElse(MeasureSet.Set(List.empty))
     }
     case Doc.Choice(a, b) =>
-      resolve(a, c, i) concat resolve(b, c, i)
-    case Doc.Fail => throw new UnsupportedOperationException
+      a.resolved(c, i) concat b.resolved(c, i)
 
-  def resolveConcat(m: Measure[C], d: Doc, i: Int): MeasureSet[C] =
-    resolveConcatCache.getOrElseUpdate((m, d, i), resolveConcatImpl(m, d, i))
-
-  private def resolveConcatImpl(m: Measure[C], d: Doc, i: Int): MeasureSet[C] =
-    resolve(d, m.last, i) match
-      case MeasureSet.Tainted(mb) =>
-        MeasureSet.Tainted(Eval.later(m concat mb.value))
-      case MeasureSet.Set(ms) => MeasureSet.Set(dedup(ms.map(m concat _)))
-}
+def resolveConcat[C: Cost](m: Measure[C], d: Doc, i: Int): MeasureSet[C] =
+  d.resolved(m.last, i) match
+    case MeasureSet.Tainted(mb) =>
+      MeasureSet.Tainted(Eval.later(m concat mb.value))
+    case MeasureSet.Set(ms) => MeasureSet.Set(dedup(ms.map(m concat _)))
