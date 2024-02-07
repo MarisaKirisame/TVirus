@@ -5,7 +5,7 @@ import zombie.tvirus.prettier.*
 def merge_abs_app_expr(x: Expr, w: Watcher): Expr = {
   val recurse = x => merge_abs_app_expr(x, w)
   x match {
-    case Expr.Var(_) | Expr.InlineVar(_) => x
+    case Expr.Var(_) | Expr.InlineVar(_) | Expr.GVar(_) => x
     case Expr.Abs(bindings, body)        => Expr.Abs(bindings, recurse(body))
     case Expr.Match(x, cases) =>
       Expr.Match(x, cases.map((lhs, rhs) => (lhs, recurse(rhs))))

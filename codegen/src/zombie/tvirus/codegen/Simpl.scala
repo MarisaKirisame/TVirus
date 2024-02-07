@@ -46,13 +46,12 @@ def unsimpl_expr(x: Expr): Expr = {
     case Expr.App(f, x) => Expr.App(recurse(f), x.map(recurse))
     case Expr.Match(x, cases) =>
       Expr.Match(recurse(x), cases.map((l, r) => (l, recurse(r))))
-    case Expr.Var(n)         => Expr.Var(n)
     case Expr.If(i, t, e)    => Expr.If(recurse(i), recurse(t), recurse(e))
     case Expr.Prim(l, op, r) => Expr.Prim(recurse(l), op, recurse(r))
     case Expr.Cons(name, xs) => Expr.Cons(name, xs.map(recurse))
-    case Expr.LitInt(i)      => Expr.LitInt(i)
-    case Expr.LitBool(_)     => x
-    case Expr.Fail()         => Expr.Fail()
+    case Expr.LitInt(_) | Expr.LitBool(_) | Expr.Var(_) | Expr.GVar(_) | Expr.Fail() =>
+      x
+    case Expr.LitBool(_) => x
   }
 }
 

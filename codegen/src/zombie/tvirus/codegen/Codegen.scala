@@ -34,6 +34,8 @@ def bracket(s: String) = "(" ++ s ++ ")"
 
 def cbracket(x: String) = "{" + x + "}"
 
+//def lambda(capture: String, args: String, body: String) = s"[${capture}](${args}){${body}}"
+def lambda(capture: String, args: String, body: String) = s"[=](${args}){${body}}"
 
 trait BackEnd {
   def type_wrapper(x: String): String
@@ -44,22 +46,22 @@ trait BackEnd {
   }
   def header: String
   def handle_constructor(x: TypeDecl): String
-  def codegen_binds_raw(x: Seq[String], y: Seq[String] => Value): Value
-  def codegen_binds(is_tail: Boolean, x: Seq[Value], y: Seq[String] => Value): Value = {
+  def codegen_binds_raw(captured: Set[String], x: Seq[String], y: Seq[String] => Value): Value
+  def codegen_binds(is_tail: Boolean, captured: Set[String], x: Seq[Value], y: Seq[String] => Value): Value = {
     if (is_tail) {
       val xname = x.map(_ => freshName())
-      val args = s"[=](${xname.map(n => s"const auto& ${n}").mkString(", ")}){ ${y(xname).toStmts} }" +: x.map(_.toExpr)
+      val args = lambda(captured.mkString(","), xname.map(n => "const auto& " ++ n).mkString(", "), y(xname).toStmts) +: x.map(_.toExpr)
       Value.Expr(s"TailCall(${args.mkString(", ")})")
     } else {
-      codegen_binds_raw(x.map(_.toExpr), y)
+      codegen_binds_raw(captured, x.map(_.toExpr), y)
     }
   }
-  def codegen_bind(is_tail: Boolean, x: Value, y: String => Value): Value = {
-    codegen_binds(is_tail, Seq(x), x_ => y(x_(0)))
+  def codegen_bind(is_tail: Boolean, captured: Set[String], x: Value, y: String => Value): Value = {
+    codegen_binds(is_tail, captured, Seq(x), x_ => y(x_(0)))
   }
 }
 
-class ZombieBackEnd extends BackEnd {
+class ZombieBackEnd(limit: Long) extends BackEnd {
   def type_wrapper(x: String): String = {
     s"Zombie<${x}>"
   }
@@ -69,11 +71,21 @@ class ZombieBackEnd extends BackEnd {
   def header: String = {
     s"""
     #include <zombie/zombie.hpp>
+    #include <iostream>
     IMPORT_ZOMBIE(default_config)
 
     struct Init {
       Init() {
-        Trailokya::get_trailokya().each_tc = [](){ record(); };
+        Trailokya::get_trailokya().each_step = [](){ 
+          ${if (limit == 0)  {
+             "" 
+            } else {
+              s"""while (allocated > ${limit}) {
+                Trailokya::get_trailokya().reaper.murder();
+              }"""
+            }}
+          record();
+        };
       }
     } init;
 
@@ -112,11 +124,14 @@ class ZombieBackEnd extends BackEnd {
     };
     """
   }
-  def codegen_binds_raw(x: Seq[String], y: Seq[String] => Value): Value = {
+  def codegen_binds_raw(captured: Set[String], x: Seq[String], y: Seq[String] => Value): Value = {
     val fn = x.map(_ => freshName())
-    Value.Expr(s"""bindZombie([=](${fn
-        .map(n => s"const auto& ${n}")
-        .mkString(", ")}){ ${y(fn).toStmts} }, ${x.mkString(", ")})""")
+    if (captured.size != 0) {
+      println(captured)
+      assert(false)
+    }
+    Value.Expr(s"""bindZombie(${lambda(captured.mkString(","), fn
+        .map(n => "const auto& " ++ n).mkString(", "), y(fn).toStmts)}, ${x.mkString(", ")})""")
   }
   def val_wrapper_raw(t: String, v: String): String = {
     s"""Zombie<${t}>(${v})"""
@@ -221,7 +236,7 @@ class NoZombieBackEnd extends BackEnd {
   def handle_constructor(x: TypeDecl): String = {
     ""
   }
-  def codegen_binds_raw(x: Seq[String], y: Seq[String] => Value): Value = {
+  def codegen_binds_raw(captured: Set[String], x: Seq[String], y: Seq[String] => Value): Value = {
     val binds = x.map(x => (x, freshName()))
     Value.Stmts(s"""
     ${binds.map((x, n) => s"auto ${n} = *${x};").mkString("\n")}
@@ -268,7 +283,7 @@ def codegen_args(bindings: Seq[String], env: CodeGenEnv): String = {
 }
 
 def codegen_template_header_from_name(n: String, env: CodeGenEnv) = {
-  env.tyck.var_map(n) match {
+  env.tyck.gvar_map(n) match {
     case Type.TypeScheme(xs, _) => codegen_template_header(xs)
     case _                      => ""
   }
@@ -331,11 +346,11 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
   val recurse_stmts = (x: Expr) => recurse(x).toStmts
   val recurse_stmts_tail = (x: Expr) => recurse_tail(x).toStmts
   
-  def codegen_binds(x: Seq[Value], y: Seq[String] => Value): Value = {
-    env.BE.codegen_binds(is_tail, x, y)
+  def codegen_binds(captured: Set[String], x: Seq[Value], y: Seq[String] => Value): Value = {
+    env.BE.codegen_binds(is_tail, captured, x, y)
   }
-  def codegen_bind(x: Value, y: String => Value): Value = {
-    codegen_binds(Seq(x), x_ => y(x_(0)))
+  def codegen_bind(captured: Set[String], x: Value, y: String => Value): Value = {
+    codegen_binds(captured, Seq(x), x_ => y(x_(0)))
   }
 
   x match {
@@ -353,11 +368,14 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
       Value.Expr(
         s"${get_adt_name(matched_type)}Match(" +
           s"${recurse_expr(matched)}, ${transformed_cases
-              .map((lhs, rhs) => s"[=](${lhs(1).map(n => "const auto& " ++ n).mkString(", ")}){${recurse_stmts_tail(rhs)}}")
+              .map((lhs, rhs) => {
+                val capture = free_vars(rhs).diff(lhs(1).toSet)
+                lambda(capture.mkString(", "), lhs(1).map(n => "const auto& " ++ n).mkString(", "), recurse_stmts_tail(rhs))
+              })
               .mkString(", ")})"
       )
     }
-    case Expr.App(Expr.Var(f), xs) => {
+    case Expr.App(Expr.GVar(f), xs) => {
       if (env.global_funcs.contains(f)) {
         Value.Expr(f + bracket(xs.map(recurse_expr).mkString(", ")))
       } else {
@@ -372,19 +390,20 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
       )
     }
     case Expr.Abs(bindings, body) => {
+      val captured = free_vars(x)
       env.BE.val_wrapper(
         codegen_type(
           env.tyck.expr_map(x),
           env
         ),
-        s"""[=](${bindings
+        lambda(captured.mkString(", "), bindings
             .map(b =>
               named_cref_wrapper(
                 env.BE.type_wrapper(codegen_type(env.tyck.var_map(b), env)),
                 b
               )
             )
-            .mkString(", ")}){ ${recurse_tail(body).toStmts} }"""
+            .mkString(", "), recurse_tail(body).toStmts)
       )
     }
     case Expr.Cons(name, xs) => {
@@ -408,11 +427,13 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
     }
     case Expr.If(i, t, e) =>
       codegen_bind(
+        free_vars(t).union(free_vars(e)),
         recurse(i),
         i_ => Value.Expr(s"(${i_} ? ${recurse_tail(t)} : ${recurse_tail(e)})")
       )
     case Expr.Prim(l, op, r) => {
       codegen_binds(
+        Set(),
         Seq(recurse(l), recurse(r)),
         xs => {
           env.BE.val_wrapper(
@@ -424,6 +445,7 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
     }
     case Expr.PrimCPS(l, op, r, k) => {
       codegen_binds(
+        Set(),
         Seq(recurse(l), recurse(r), recurse(k)),
         xs => {
           val t = resolve(env.tyck.expr_map(k)) match {
@@ -536,6 +558,7 @@ def codegen_match(x: TypeDecl, env: CodeGenEnv): String = {
   header + cbracket(
     env.BE.codegen_bind(
       true,
+      matcher_name.toSet,
       Value.Expr(matched_name),
       matched =>
         Value.Stmts(
@@ -626,11 +649,11 @@ def codegen_vd(x: ValueDecl, env: CodeGenEnv): String = {
   }
 }
 
-def codegen(x: Program, backend: String, log_path: String): String = {
+def codegen(x: Program, backend: String, limit: Long, log_path: String): String = {
   val BE = if (backend == "baseline") { 
     NoZombieBackEnd()
    } else if (backend == "zombie") { 
-    ZombieBackEnd()
+    ZombieBackEnd(limit=limit)
   } else {
     assert(false)
   }
@@ -653,9 +676,13 @@ def codegen(x: Program, backend: String, log_path: String): String = {
     x.vds.map(codegen_vd(_, env)).mkString("\n"))
 }
 
+def run_ok(x: ProcessBuilder) = {
+  assert(x.! == 0)
+}
+
 def compile(x: String) = {
   try {
-    Process("rm output.cpp || :").!
+    Process("rm output.cpp").!
     // todo use os-lib
     val fileWriter = new FileWriter("output.cpp")
     fileWriter.write(x)
@@ -665,7 +692,9 @@ def compile(x: String) = {
       println("fail to write into target-file" + e.getMessage)
   }
   Process("clang-format --style='{ColumnLimit: 200}' -i output.cpp").!
+  Process("cat output.cpp").!
   println("compiling...")
-  Process("g++ -g -o3 -std=c++20 -o output output.cpp -lmimalloc").!
+  run_ok(Process("g++ -g -O3 -std=c++20 -o output output.cpp -lmimalloc"))
+  //Process("g++ -g -std=c++20 -o output output.cpp -lmimalloc").!
   Process("cloc output.cpp").!
 }

@@ -19,7 +19,7 @@ extension (ds: Iterable[Doc])
 
 def pp_type(x: Type): Doc = {
   resolve(x) match {
-    case Type.Var(name, _) => name
+    case Type.Var(name, None) => name
     case Type.App(f, y) =>
       pp_type(f) <> Doc.bracketed(Doc.group(y.map(pp_type).interleave()))
     case Type.Func(l, r) =>
@@ -85,6 +85,7 @@ def pp_expr(x: Expr): Doc = {
       )
 
     case Expr.Var(y)       => y
+    case Expr.GVar(y)       => y
     case Expr.InlineVar(y) => y
     case Expr.Match(y, cases) =>
       Doc.bracketed(
@@ -138,6 +139,7 @@ def pp_expr(x: Expr): Doc = {
         ) <> Doc.nl <> "} else {" <> Doc.nest(2, Doc.nl <> bf) <> Doc.nl <> "}")
     }
     case Expr.Fail() => "fail"
+    case Expr.DeclValue(t) => "?:" <> pp_type(t)
 }
 
 def pp_valdecl(x: ValueDecl): Doc = {

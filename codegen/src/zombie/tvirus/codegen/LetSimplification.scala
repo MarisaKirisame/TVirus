@@ -28,6 +28,7 @@ def let_analysis(x: Expr, env: LetSimplEnv): Unit = {
         case Some(i) => env.use_count.put(n, i + 1)
       }
     }
+    case Expr.GVar(n)      => {}
     case Expr.InlineVar(n) => recurse(Expr.Var(n))
     case Expr.Let(bindings, body) => {
       bindings.map((lhs, rhs) => {
@@ -52,7 +53,7 @@ def let_analysis(x: Expr, env: LetSimplEnv): Unit = {
     case Expr.Cons(name, xs) => {
       xs.map(recurse)
     }
-    case Expr.LitInt(_) => {}
+    case Expr.LitInt(_)  => {}
     case Expr.LitBool(_) => {}
     case Expr.If(i, t, e) => {
       recurse(i)
@@ -80,7 +81,7 @@ def unlet(x: Expr, env: LetSimplEnv): Expr = {
       Expr.Match(recurse(x), cases.map((lhs, rhs) => (lhs, recurse(rhs))))
     case Expr.Var(n) => {
       simp_name(n) match {
-        case None    => Expr.Var(n)
+        case None => Expr.Var(n)
         case Some(e) => {
           env.w.make_progress()
           recurse(e)
@@ -89,7 +90,7 @@ def unlet(x: Expr, env: LetSimplEnv): Expr = {
     }
     case Expr.InlineVar(n) => {
       env.defs.get(n) match {
-        case None    => Expr.InlineVar(n)
+        case None => Expr.InlineVar(n)
         case Some(e) => {
           env.w.make_progress()
           recurse(e)
@@ -107,11 +108,10 @@ def unlet(x: Expr, env: LetSimplEnv): Expr = {
       }
     }
     case Expr.Cons(name, args) => Expr.Cons(name, args.map(recurse))
-    case Expr.LitInt(_)        => x
-    case Expr.LitBool(_)       => x
-    case Expr.If(i, t, e)      => Expr.If(recurse(i), recurse(t), recurse(e))
-    case Expr.Prim(l, op, r)   => Expr.Prim(recurse(l), op, recurse(r))
-    case Expr.Fail()           => Expr.Fail()
+    case Expr.LitInt(_) | Expr.LitBool(_) | Expr.GVar(_) => x
+    case Expr.If(i, t, e)    => Expr.If(recurse(i), recurse(t), recurse(e))
+    case Expr.Prim(l, op, r) => Expr.Prim(recurse(l), op, recurse(r))
+    case Expr.Fail()         => Expr.Fail()
   }
 }
 

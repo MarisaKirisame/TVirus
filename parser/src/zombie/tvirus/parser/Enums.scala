@@ -34,6 +34,7 @@ enum Expr:
   case Prim(left: Expr, op: PrimOp, right: Expr)
   case PrimCPS(left: Expr, op: PrimOp, right: Expr, to: Expr)
   case Var(name: String)
+  case GVar(name: String)
   case InlineVar(name: String)
   case LitInt(inner: Int)
   case LitBool(inner: Boolean)

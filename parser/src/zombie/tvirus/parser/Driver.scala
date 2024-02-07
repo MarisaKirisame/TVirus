@@ -132,7 +132,7 @@ object TVirusParserExprVisitor extends TVirusParserBaseVisitor[Expr] {
 
   override def visitExprKwTrue(ctx: ExprKwTrueContext): Expr =
     Expr.LitBool(true)
-  
+
   override def visitExprKwFalse(ctx: ExprKwFalseContext): Expr =
     Expr.LitBool(false)
 
@@ -159,7 +159,7 @@ object TVirusParserExprVisitor extends TVirusParserBaseVisitor[Expr] {
       visit(ctx.expr().get(ctx.expr().size() - 1))
     )
 
-  override def visitExprMatch(ctx: ExprMatchContext): Expr =
+  override def visitExprMatch(ctx: ExprMatchContext): Expr = {
     Expr.Match(
       visit(ctx.expr(0)),
       ctx
@@ -169,6 +169,7 @@ object TVirusParserExprVisitor extends TVirusParserBaseVisitor[Expr] {
         .zip(ctx.expr().asScala.drop(1).map(visit))
         .toSeq
     )
+  }
 
   override def visitExprIf(ctx: ExprIfContext): Expr = {
     val exprs = ctx.expr().asScala.map(TVirusParserExprVisitor.visit).toSeq
@@ -213,10 +214,9 @@ object TVirusParserProgramVisitor extends TVirusParserBaseVisitor[Program] {
   }
 }
 
-def drive(source: CharStream) = {
+def drive(source: CharStream): Program = {
   val lexer = TVirusLexer(source)
   val stream = CommonTokenStream(lexer)
   val parser = TVirusParser(stream)
-
   TVirusParserProgramVisitor.visit(parser.program())
 }

@@ -90,12 +90,17 @@ def collect_decls(
     case Expr.Var(name) => {
       val r = get_vd(p, name)
       r match {
+        case None => acc
+      }
+    }
+    case Expr.GVar(name) => {
+      val r = get_vd(p, name)
+      r match {
         case Some(vd) =>
           if (vd_in(acc, vd)) { acc }
           else {
             collect_decls(vd.b, p, cm, add_vd(acc, vd))
           }
-        case None => acc
       }
     }
     case Expr.LitInt(x)  => acc
@@ -130,7 +135,7 @@ def dce(p: Program): Program = {
   val tds = p.tds
   val cm = make_cons_map(tds)
   collect_decls(
-    Expr.Var("main"),
+    Expr.GVar("main"),
     p,
     cm,
     Program(Array[TypeDecl](), Array[ValueDecl]())

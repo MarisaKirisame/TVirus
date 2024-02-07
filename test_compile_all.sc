@@ -2,13 +2,14 @@
 //> using dep "com.lihaoyi::os-lib:0.9.3"
 
 val allTVirusFiles = os.walk(os.pwd / "example").filter(_.ext == "tv")
-
+val benchmark_file = Seq("2dtree", "debruijnparser", "fft", "listweird", "mergesort", "monadicparser", "pascal", "pascal2d", "prettyprinter", "rbt", "ski", "splaytree", "taba", "vector")
 // os.proc.call will throw SubprocessException if non-zero exit code is returned
 
-val results = allTVirusFiles
+val results = benchmark_file
     .map(p => {
       try {
-        os.proc("mill", "cli", p).call()
+        println(s"working on ${p}!")
+        os.proc("mill", "codegen", p).call()
         p -> true
       } catch {
         case e: os.SubprocessException => p -> false
