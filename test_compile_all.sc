@@ -1,7 +1,7 @@
 //> using scala 3.3
 //> using dep "com.lihaoyi::os-lib:0.9.3"
 
-val allTVirusFiles = os.walk(os.pwd / "example").filter(_.ext == "tv")
+// val allTVirusFiles = os.walk(os.pwd / "example").filter(_.ext == "tv")
 val benchmark_file = Seq("2dtree", "debruijnparser", "fft", "listweird", "mergesort", "monadicparser", "pascal", "pascal2d", "prettyprinter", "rbt", "ski", "splaytree", "taba", "vector")
 // os.proc.call will throw SubprocessException if non-zero exit code is returned
 
@@ -16,9 +16,7 @@ val results = benchmark_file
       }
     })
 val textresult = results.map((p, succ) => {
-      val ps = p.toString().split("/")
-      val pc = ps(ps.length - 1)
-      val pn = pc.slice(0, pc.length - 3)
+      val pn = p
       val s = if (succ) { "✅" }
       else { "❌" }
       val sep = " " * (20 - pn.length)
