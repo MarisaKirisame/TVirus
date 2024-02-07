@@ -18,7 +18,7 @@ extension (ds: Iterable[Doc])
 
 def pp_type(x: Type): Doc = {
   resolve(x) match {
-    case Type.Var(name, _) => name
+    case Type.Var(name, None) => name
     case Type.App(f, y) =>
       pp_type(f) <> Doc.bracketed(Doc.Group(y.map(pp_type).interleave()))
     case Type.Func(l, r) =>

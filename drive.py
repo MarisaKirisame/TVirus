@@ -9,18 +9,25 @@ zombie_backend = {
   "limit": NONDET(
     {"name": "no"},
     {"name": "RelToZombie",
-     "ratio": NONDET(0.5, 0.3, 0.2, 0.1, 0.05)})}
+     "ratio": NONDET(0.5, 0.3, 0.2, 0.1, 0.05, 0.03, 0.02, 0.01, 0.005, 0.003, 0.002, 0.001)})}
 
 zombie_backend = {
   "name": "zombie",
+  "limit": NONDET(
+    {"name": "no"},
+    {"name": "RelToZombie",
+     "ratio": NONDET(0.1, 0.01)})}
+
+zombie_noevict_backend = {
+  "name": "zombie",
   "limit": NONDET({"name": "no"})}
+
+baseline_backend = {"name": "baseline",
+     "limit": {"name": "no"}}
 
 default = {
   "program": "taba",
-  "backend": NONDET(
-    {"name": "baseline",
-     "limit": {"name": "no"}},
-    zombie_backend)
+  "backend": NONDET(baseline_backend, zombie_backend)
 }
 
 def read_file(path):

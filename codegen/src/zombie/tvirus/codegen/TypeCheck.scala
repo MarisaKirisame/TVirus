@@ -3,7 +3,6 @@ import zombie.tvirus.parser.*
 import scala.jdk.CollectionConverters.*
 import java.util.IdentityHashMap
 import collection.mutable
-import cats.syntax.binested
 
 def resolve(t: Type): Type = {
   t match
@@ -47,8 +46,12 @@ def unify(l_raw: Type, r_raw: Type, err_msg: => String): Unit = {
       assert(false)
     }
     (l, r) match
-      case (l @ Type.Var(_, None), r) => l.ty = Some(r)
-      case (_, r @ Type.Var(_, None)) => r.ty = Some(l)
+      case (l @ Type.Var(_, None), r) => {
+        l.ty = Some(r)
+      }
+      case (_, r @ Type.Var(_, None)) => {
+        r.ty = Some(l)
+      }
       case (Type.Func(ll, lr), Type.Func(rl, rr)) => {
         if (ll.length != rl.length) {
           println(show(pp_type(l)))
@@ -79,12 +82,84 @@ def unify(l_raw: Type, r_raw: Type, err_msg: => String): Unit = {
   }
 }
 
+def gv(x: Expr): Set[String] = {
+  x match
+    case Expr.LitInt(_) | Expr.Var(_) => Set()
+    case Expr.App(f, x) => gv(f).union(unions(x.map(gv)))
+    case Expr.GVar(n) => Set(n)
+    case Expr.Cons(_, x) => unions(x.map(gv))
+    case Expr.Abs(_, x) => gv(x)
+    case Expr.Match(x, cases) => gv(x).union(unions(cases.map((lhs, rhs) => gv(rhs))))
+}
+
+def scc(x: Map[String, Seq[String]]): Seq[Seq[String]] = {
+  var index = 0
+  val index_map = mutable.Map[String, Int]()
+  val lowlink_map = mutable.Map[String, Int]()
+  val on_stack = mutable.Set[String]()
+  val stack = mutable.Stack[String]()
+  var ret = Seq[Seq[String]]()
+  def dfs(v: String): Unit = {
+    index_map.put(v, index)
+    lowlink_map.put(v, index)
+    stack.push(v)
+    on_stack.add(v)
+    index += 1
+    for (w <- x(v)) {
+      if (!index_map.contains(w)) {
+        dfs(w)
+        lowlink_map.put(v, lowlink_map(v).min(lowlink_map(w)))
+      } else if (on_stack.contains(w)) {
+        lowlink_map.put(v, lowlink_map(v).min(index_map(w)))
+      }
+    }
+    if (index_map(v) == lowlink_map(v)) {
+      var group = Seq[String]()
+      while ({
+        val w = stack.pop()
+        on_stack.remove(w)
+        group = w +: group
+        w != v
+      }) { }
+      ret = ret :+ group
+    }
+  }
+  for ((v, _) <- x) {
+    if (!index_map.contains(v)) {
+      dfs(v)
+    }
+  }
+  ret
+}
+
+//    val tv = fresh_tv()
+//    env.gvar_map.put(vd.x, tv)
+
+//    val result = tyck_expr(vd.b, env)
+//    unify(result, tv, "")
+//    env.gvar_map.put(vd.x, generalize(tv))
+
 class TyckEnv(p: Program) {
   val var_map = mutable.Map[String, Type]()
+  val gvar_map = mutable.Map[String, Type]()
   val expr_map = IdentityHashMap[Expr, Type]().asScala
-  val unvisited = mutable.Map[String, ValueDecl](p.vds.map(vd => (vd.x, vd))*)
+  val vd_map = p.vds.map(vd => (vd.x -> vd)).toMap
   p.tds.map(tyck_td(_, this))
-  p.vds.map(tyck_vd(_, this))
+
+  val Edges = p.vds.map(vd => vd.x -> gv(vd.b).toSeq).toMap
+  for (group <- scc(Edges)) {
+    for (n <- group) {
+      val tv = fresh_tv()
+      gvar_map.put(n, tv)
+    }
+    for (n <- group) {
+      val result = tyck_expr(vd_map(n).b, this)
+      unify(result, gvar_map(n), "")
+    }
+    for (n <- group) {
+      gvar_map.put(n, generalize(gvar_map(n)))
+    }
+  }
 }
 
 def tyck_pat(x: Pat, env: TyckEnv): Type = {
@@ -161,18 +236,7 @@ def tyck_expr(x: Expr, env: TyckEnv): Type = {
         }
       }
     case Expr.GVar(v) => {
-      env.var_map.get(v) match {
-        case Some(t) => instantiate(t)
-        case None => {
-          if (env.unvisited.contains(v)) {
-            tyck_vd(env.unvisited(v), env)
-            recurse(x)
-          } else {
-            println("???")
-            assert(false)
-          }
-        }
-      }
+      instantiate(env.gvar_map(v))
     }
     case Expr.InlineVar(x) => {
       recurse(Expr.Var(x))
@@ -261,16 +325,6 @@ def tyck_td(td: TypeDecl, env: TyckEnv): Unit = {
       )
     )
   )
-}
-
-def tyck_vd(vd: ValueDecl, env: TyckEnv): Unit = {
-  if (env.unvisited.contains(vd.x)) {
-    env.unvisited.remove(vd.x)
-    val tv = fresh_tv()
-    env.var_map.put(vd.x, tv)
-    unify(tyck_expr(vd.b, env), tv, "")
-    env.var_map.put(vd.x, generalize(tv))
-  }
 }
 
 def tyck_program(p: Program) = {

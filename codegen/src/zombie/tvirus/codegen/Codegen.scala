@@ -34,6 +34,8 @@ def bracket(s: String) = "(" ++ s ++ ")"
 
 def cbracket(x: String) = "{" + x + "}"
 
+//def lambda(capture: String, args: String, body: String) = s"[${capture}](${args}){${body}}"
+def lambda(capture: String, args: String, body: String) = s"[=](${args}){${body}}"
 
 trait BackEnd {
   def type_wrapper(x: String): String
@@ -44,14 +46,14 @@ trait BackEnd {
   }
   def header: String
   def handle_constructor(x: TypeDecl): String
-  def codegen_binds_raw(x: Seq[String], y: Seq[String] => Value): Value
+  def codegen_binds_raw(captured: Set[String], x: Seq[String], y: Seq[String] => Value): Value
   def codegen_binds(is_tail: Boolean, captured: Set[String], x: Seq[Value], y: Seq[String] => Value): Value = {
     if (is_tail) {
       val xname = x.map(_ => freshName())
-      val args = s"[${captured.mkString(",")}](${xname.map(n => s"const auto& ${n}").mkString(", ")}){ ${y(xname).toStmts} }" +: x.map(_.toExpr)
+      val args = lambda(captured.mkString(","), xname.map(n => "const auto& " ++ n).mkString(", "), y(xname).toStmts) +: x.map(_.toExpr)
       Value.Expr(s"TailCall(${args.mkString(", ")})")
     } else {
-      codegen_binds_raw(x.map(_.toExpr), y)
+      codegen_binds_raw(captured, x.map(_.toExpr), y)
     }
   }
   def codegen_bind(is_tail: Boolean, captured: Set[String], x: Value, y: String => Value): Value = {
@@ -74,7 +76,7 @@ class ZombieBackEnd(limit: Long) extends BackEnd {
 
     struct Init {
       Init() {
-        Trailokya::get_trailokya().each_tc = [](){ 
+        Trailokya::get_trailokya().each_step = [](){ 
           ${if (limit == 0)  {
              "" 
             } else {
@@ -122,11 +124,14 @@ class ZombieBackEnd(limit: Long) extends BackEnd {
     };
     """
   }
-  def codegen_binds_raw(x: Seq[String], y: Seq[String] => Value): Value = {
+  def codegen_binds_raw(captured: Set[String], x: Seq[String], y: Seq[String] => Value): Value = {
     val fn = x.map(_ => freshName())
-    Value.Expr(s"""bindZombie([=](${fn
-        .map(n => s"const auto& ${n}")
-        .mkString(", ")}){ ${y(fn).toStmts} }, ${x.mkString(", ")})""")
+    if (captured.size != 0) {
+      println(captured)
+      assert(false)
+    }
+    Value.Expr(s"""bindZombie(${lambda(captured.mkString(","), fn
+        .map(n => "const auto& " ++ n).mkString(", "), y(fn).toStmts)}, ${x.mkString(", ")})""")
   }
   def val_wrapper_raw(t: String, v: String): String = {
     s"""Zombie<${t}>(${v})"""
@@ -231,7 +236,7 @@ class NoZombieBackEnd extends BackEnd {
   def handle_constructor(x: TypeDecl): String = {
     ""
   }
-  def codegen_binds_raw(x: Seq[String], y: Seq[String] => Value): Value = {
+  def codegen_binds_raw(captured: Set[String], x: Seq[String], y: Seq[String] => Value): Value = {
     val binds = x.map(x => (x, freshName()))
     Value.Stmts(s"""
     ${binds.map((x, n) => s"auto ${n} = *${x};").mkString("\n")}
@@ -278,7 +283,7 @@ def codegen_args(bindings: Seq[String], env: CodeGenEnv): String = {
 }
 
 def codegen_template_header_from_name(n: String, env: CodeGenEnv) = {
-  env.tyck.var_map(n) match {
+  env.tyck.gvar_map(n) match {
     case Type.TypeScheme(xs, _) => codegen_template_header(xs)
     case _                      => ""
   }
@@ -363,7 +368,10 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
       Value.Expr(
         s"${get_adt_name(matched_type)}Match(" +
           s"${recurse_expr(matched)}, ${transformed_cases
-              .map((lhs, rhs) => s"[=](${lhs(1).map(n => "const auto& " ++ n).mkString(", ")}){${recurse_stmts_tail(rhs)}}")
+              .map((lhs, rhs) => {
+                val capture = free_vars(rhs).diff(lhs(1).toSet)
+                lambda(capture.mkString(", "), lhs(1).map(n => "const auto& " ++ n).mkString(", "), recurse_stmts_tail(rhs))
+              })
               .mkString(", ")})"
       )
     }
@@ -382,19 +390,20 @@ def codegen_expr(x: Expr, env: CodeGenEnv, is_tail: Boolean): Value = {
       )
     }
     case Expr.Abs(bindings, body) => {
+      val captured = free_vars(x)
       env.BE.val_wrapper(
         codegen_type(
           env.tyck.expr_map(x),
           env
         ),
-        s"""[=](${bindings
+        lambda(captured.mkString(", "), bindings
             .map(b =>
               named_cref_wrapper(
                 env.BE.type_wrapper(codegen_type(env.tyck.var_map(b), env)),
                 b
               )
             )
-            .mkString(", ")}){ ${recurse_tail(body).toStmts} }"""
+            .mkString(", "), recurse_tail(body).toStmts)
       )
     }
     case Expr.Cons(name, xs) => {
@@ -549,7 +558,7 @@ def codegen_match(x: TypeDecl, env: CodeGenEnv): String = {
   header + cbracket(
     env.BE.codegen_bind(
       true,
-      Set(),
+      matcher_name.toSet,
       Value.Expr(matched_name),
       matched =>
         Value.Stmts(
@@ -682,5 +691,6 @@ def compile(x: String) = {
   Process("cat output.cpp").!
   println("compiling...")
   Process("g++ -g -O3 -std=c++20 -o output output.cpp -lmimalloc").!
+  //Process("g++ -g -std=c++20 -o output output.cpp -lmimalloc").!
   Process("cloc output.cpp").!
 }
