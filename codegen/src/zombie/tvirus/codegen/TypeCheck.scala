@@ -84,12 +84,16 @@ def unify(l_raw: Type, r_raw: Type, err_msg: => String): Unit = {
 
 def gv(x: Expr): Set[String] = {
   x match
-    case Expr.LitInt(_) | Expr.Var(_) => Set()
+    case Expr.LitInt(_) | Expr.Var(_) | Expr.LitBool(_) | Expr.Fail() => Set()
     case Expr.App(f, x) => gv(f).union(unions(x.map(gv)))
     case Expr.GVar(n) => Set(n)
     case Expr.Cons(_, x) => unions(x.map(gv))
     case Expr.Abs(_, x) => gv(x)
     case Expr.Match(x, cases) => gv(x).union(unions(cases.map((lhs, rhs) => gv(rhs))))
+    case Expr.If(i, t, e) => gv(i).union(gv(t)).union(gv(e))
+    case Expr.Prim(l, op, r) => gv(l).union(gv(r))
+    case Expr.PrimCPS(l, op, r, k) => gv(l).union(gv(r)).union(gv(k))
+    case Expr.Let(bindings, body) => unions(bindings.map((lhs, rhs) => gv(rhs))).union(gv(body))
 }
 
 def scc(x: Map[String, Seq[String]]): Seq[Seq[String]] = {
@@ -131,13 +135,6 @@ def scc(x: Map[String, Seq[String]]): Seq[Seq[String]] = {
   }
   ret
 }
-
-//    val tv = fresh_tv()
-//    env.gvar_map.put(vd.x, tv)
-
-//    val result = tyck_expr(vd.b, env)
-//    unify(result, tv, "")
-//    env.gvar_map.put(vd.x, generalize(tv))
 
 class TyckEnv(p: Program) {
   val var_map = mutable.Map[String, Type]()

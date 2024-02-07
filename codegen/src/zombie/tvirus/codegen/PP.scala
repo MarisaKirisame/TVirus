@@ -132,6 +132,7 @@ def pp_expr(x: Expr): Doc = {
         ) <> Doc.Nl <> "} else {" <> Doc.Nest(2, Doc.Nl <> bf) <> Doc.Nl <> "}")
     }
     case Expr.Fail() => "fail"
+    case Expr.DeclValue(t) => "?:" <> pp_type(t)
 }
 
 def pp_valdecl(x: ValueDecl): Doc = {

@@ -136,7 +136,7 @@ def free_vars(x: Expr): Set[String] = {
     case Expr.PrimCPS(l, op, r, k) =>
       recurse(l).union(recurse(r)).union(recurse(k))
     case Expr.Abs(l, r) => recurse(r).diff(Set(l: _*))
-    case Expr.Fail() | Expr.GVar(_) | Expr.LitInt(_) => Set()
+    case Expr.Fail() | Expr.GVar(_) | Expr.LitInt(_) | Expr.LitBool(_) => Set()
     case Expr.If(i, t, e) => recurse(i).union(recurse(t)).union(recurse(e))
     case Expr.Cons(_, x) => unions(x.map(recurse))
     case Expr.Match(x, cases) => recurse(x).union(unions(cases.map((lhs, rhs) => recurse(rhs).diff(pattern_vars(lhs)))))
@@ -251,7 +251,7 @@ def compile_ocaml(x: String) = {
   Process("time ocaml output.ml").!
 }
 
-@main def main(
+def old_main(
     program: String,
     backend: String,
     limit: Long,
@@ -270,7 +270,10 @@ def compile_ocaml(x: String) = {
   var x = drive(CharStreams.fromString(src))
   check_dup(x)
   x = refresh(dce(cons(x)))
-  println(show(pp(x)))
+  //for (vd <- x.vds) {
+  //  println(vd)
+  //}
+  //assert(false)
   x = reify_global_funcs(x)
   // println(show(pp(x)))
   x = simpl(unnest_match(x))
@@ -292,4 +295,9 @@ def compile_ocaml(x: String) = {
   val cpp_code =
     codegen(x, backend = backend, limit = limit, log_path = log_path)
   compile(cpp_code)
+}
+
+@main def test_compile(program: String) = {
+  old_main(program, "baseline", 0, "placeholder")
+  old_main(program, "zombie", 0, "placeholder")
 }

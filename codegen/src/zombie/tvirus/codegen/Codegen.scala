@@ -676,9 +676,13 @@ def codegen(x: Program, backend: String, limit: Long, log_path: String): String 
     x.vds.map(codegen_vd(_, env)).mkString("\n"))
 }
 
+def run_ok(x: ProcessBuilder) = {
+  assert(x.! == 0)
+}
+
 def compile(x: String) = {
   try {
-    Process("rm output.cpp || :").!
+    Process("rm output.cpp").!
     // todo use os-lib
     val fileWriter = new FileWriter("output.cpp")
     fileWriter.write(x)
@@ -690,7 +694,7 @@ def compile(x: String) = {
   Process("clang-format --style='{ColumnLimit: 200}' -i output.cpp").!
   Process("cat output.cpp").!
   println("compiling...")
-  Process("g++ -g -O3 -std=c++20 -o output output.cpp -lmimalloc").!
+  run_ok(Process("g++ -g -O3 -std=c++20 -o output output.cpp -lmimalloc"))
   //Process("g++ -g -std=c++20 -o output output.cpp -lmimalloc").!
   Process("cloc output.cpp").!
 }
