@@ -1,29 +1,29 @@
 package zombie.tvirus.prettier
 
 import utest.*
+import zombie.tvirus.prettier.Doc.{<>, <+>}
+import utest.framework.ExecutionContext.RunNow
 
 object PrettierTests extends TestSuite {
 
   def printDocChoice(w: Int) = {
-    val exit_d = Doc.Text("exit();")
-
-    val d = "while (true) {" <> Doc.Nest(
+    val d = "while (true) {" <> Doc.nest(
       4,
-      Doc.Nl <> "f();" <> Doc.Nl <> "if (done())" <>
-        ((" " <> exit_d) <|> Doc.Nest(4, Doc.Nl <> exit_d))
-    ) <> Doc.Nl <> "}"
+      Doc.nl <> "f();" <> Doc.nl <> "if (done())" <>
+        ((" " <> "exit();") <|> Doc.nest(4, Doc.nl <> "exit();"))
+    ) <> Doc.nl <> "}"
 
-    d.resolved(using Cost.sumOfSquared(w))
+    d.printed(w)
   }
 
   def printDocGroup(w: Int) = {
-    val d = "while (true) {" <> Doc.Nest(
+    val d = "while (true) {" <> Doc.nest(
       4,
-      Doc.Nl <> "f();" <> Doc.Nl <> "if (done())" <>
-        Doc.Group(Doc.Nest(4, Doc.Nl <> "exit();"))
-    ) <> Doc.Nl <> "}"
+      Doc.nl <> "f();" <> Doc.nl <> "if (done())" <>
+        Doc.group(Doc.nest(4, Doc.nl <> "exit();"))
+    ) <> Doc.nl <> "}"
 
-    d.resolved(using Cost.sumOfSquared(w))
+    d.printed(w)
   }
 
   enum SExp:
@@ -32,10 +32,10 @@ object PrettierTests extends TestSuite {
 
   def printSExp(s: SExp, w: Int) = {
     def acat(ds: List[Doc]) =
-      ds.reduceOption(_ <+> " " <+> _).getOrElse(Doc.Text(""))
+      ds.reduceOption(_ <+> " " <+> _).getOrElse(Doc.text(""))
 
     def pretty(s: SExp): Doc = s match
-      case SExp.Atom(s) => Doc.Text(s)
+      case SExp.Atom(s) => s
       case SExp.List(ls) =>
         ls match
           case Nil      => "(" <+> ")"
@@ -50,7 +50,7 @@ object PrettierTests extends TestSuite {
               <+> ")"
           }
 
-    pretty(s).resolved(using Cost.sumOfSquared(w))
+    pretty(s).printed(w)
   }
 
   val exampleSExp = SExp.List(

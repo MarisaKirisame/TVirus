@@ -22,13 +22,14 @@ object codegen extends CommonModule {
 
 object prettier extends CommonModule {
   def ivyDeps = Agg(
-    ivy"io.higherkindness::droste-core:0.9.0",
-    ivy"org.typelevel::shapeless3-deriving:3.4.1",
-    ivy"com.lihaoyi::pprint:0.8.1"
+    ivy"org.typelevel::cats-core:2.10.0",
+    ivy"com.lihaoyi::pprint:0.8.1",
+    ivy"com.dynatrace.hash4j:hash4j:0.16.0"
   )
 
   object test extends ScalaTests with TestModule.Utest {
     def ivyDeps = Agg(ivy"com.lihaoyi::utest:0.8.2")
+    def parallelExecution = false
   }
 }
 
