@@ -160,7 +160,7 @@ def transform_program(
     _rhs: Seq[Expr],
     env: LEnv
 ): Expr = {
-  if (_lhs.forall(pats => pats.length == 0 || always_match(pats(0)))) {
+  if (true || _lhs.forall(pats => pats.length == 0 || always_match(pats(0)))) {
     transform_program_raw(matched, _lhs, _rhs, env)
   } else {
     assert(_lhs.forall(pats => pats.length == matched.length))

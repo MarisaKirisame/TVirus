@@ -250,6 +250,7 @@ def compile_ocaml(x: String) = {
   Process("time ocaml output.ml").!
 }
 
+@main
 def old_main(
     program: String,
     backend: String,
@@ -296,7 +297,8 @@ def old_main(
   compile(cpp_code)
 }
 
-@main def test_compile(program: String) = {
+//@main
+def test_compile(program: String) = {
   old_main(program, "baseline", 0, "placeholder")
   old_main(program, "zombie", 0, "placeholder")
 }
