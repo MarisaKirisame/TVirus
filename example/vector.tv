@@ -62,5 +62,5 @@ let modify = \t, x, f . match t with
 
 let main = 
   let vec = build(\x . x, 1000) in
-  let newVec = modify(vec, 100, \x . x + (access(vec, 100)))
+  let newVec = modify(vec, 100, \x . (x + access(vec, 2)))
   in access(newVec, 100)
