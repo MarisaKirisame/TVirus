@@ -76,7 +76,7 @@ class ZombieBackEnd(limit: Long) extends BackEnd {
 
     struct Init {
       Init() {
-        Trailokya::get_trailokya().each_step = [](){ 
+        Trailokya::get_trailokya().each_tc = [](){ 
           ${if (limit == 0)  {
              "" 
             } else {
@@ -224,7 +224,7 @@ class NoZombieBackEnd extends BackEnd {
     }
     template<typename F>
     auto bindZombieTC(F&& f) {
-      auto tcsp = f();
+      auto tcsp = ToTCSP(f());
       while (!tcsp.t->is_return()) {
         tcsp.t = tcsp.t->from_tc()();
         record();

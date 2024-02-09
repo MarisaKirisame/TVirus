@@ -73,7 +73,7 @@ for x in os.listdir(d):
 zombie_baseline_time = None
 zombie_baseline_space = None
 
-def get_spacetime(r):
+def get_spacetime(r, use_total_allocated=False):
     start_time = None
     space = None
     time = None
@@ -81,7 +81,10 @@ def get_spacetime(r):
         if start_time is None:
             space = 0
             start_time = l["timestamp"]
-        space = max(space, l["allocated"])
+        if use_total_allocated:
+            space = max(space, l["total_allocated"])
+        else:
+            space = max(space, l["allocated"])
         time = l["timestamp"] - start_time
     return (space, time)
 
@@ -95,12 +98,18 @@ baseline_points = []
 
 for r in runs:
     space, time = get_spacetime(r)
+    print(f"space = {space/1e6}MB, time = {time/1e9}s")
     space = space / zombie_baseline_space
     time = time / zombie_baseline_time
     if r.config["backend"]["name"] == "zombie":
         zombie_points.append((space, time))
     else:
         baseline_points.append((space, time))
+        #space, time = get_spacetime(r, use_total_allocated=True)
+        #print(f"space = {space/1e6}MB, time = {time/1e9}s")
+        #space = space / zombie_baseline_space
+        #time = time / zombie_baseline_time
+        #baseline_points.append((space, time))
 
 x, y = zip(*zombie_points)
 plt.scatter(x, y, label="zombie")
