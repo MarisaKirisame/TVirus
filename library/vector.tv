@@ -60,6 +60,10 @@ let vec_modify = \t, x, f . match t with
     Branch(n, t1, t2, t3, vec_modify(t4, x - s1 - s2 - s3, f))
   } } }
 
+let vec_map = \v, f . 
+  let n = vec_length(v) in 
+  vec_build(\i . f(vec_access(v, i)), n)
+
 let vec_zipWith = \a, b, f . 
   let n = vec_length(a) in 
   vec_build(\i . f(vec_access(a, i), vec_access(b, i)), n)

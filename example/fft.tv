@@ -1,6 +1,6 @@
 let modAdd = \a, b . ((a + b) % 998244353)
 
-let modSub = \a, b . ((a - b + 998244353) % 998244353)
+let modSub = \a, b . (((a - b) + 998244353) % 998244353)
 
 let modMul = \a, b . ((a * b) % 998244353)
 
@@ -8,9 +8,11 @@ let qkpow = \x, k .
   if k == 0 {
     1
   } else {
-    modMul(qkpow(x * x, k / 2), (
-      if k % 2 == 1 { x } else { 1 }
-    ))
+    if (k % 2) == 1 {
+      modMul(qkpow(modMul(x, x), k / 2), x)
+    } else {
+      qkpow(modMul(x, x), k / 2)
+    }
   }
 
 let inv = \x . qkpow(x, 998244353 - 2)
@@ -26,29 +28,40 @@ let fromSub = \s . match s with
 | MkSubVector(v, a, b) -> v
 
 let getEven = \t . match t with
-| MkSubVector(v, a, b) -> MkSubVector(v, 2 * a, 2 * b)
+| MkSubVector(v, a, b) -> MkSubVector(v, 2 * a, b)
 
 let getOdd = \t . match t with
-| MkSubVector(v, a, b) -> MkSubVector(v, 2 * a, 2 * b + 1)
+| MkSubVector(v, a, b) -> MkSubVector(v, 2 * a, a + b)
 
 let subAccess = \t, x . match t with
-| MkSubVector(v, a, b) -> vec_access(v, a * x + b)
+| MkSubVector(v, a, b) -> vec_access(v, (a * x) + b)
 
-let DFT = \v, n, rev . 
+let DFTAux = \v, n, rev . 
   if n == 1 {
     v
   } else {
-    let g = DFT(getEven(v), n / 2, rev),
-        h = DFT(getOdd(v), n / 2, rev),
+    let g = DFTAux(getEven(v), n / 2, rev),
+        h = DFTAux(getOdd(v), n / 2, rev),
         gi = if rev { inv(3) } else { 3 },
         gn = qkpow(gi, (998244353 - 1) / n)
     in toSub(vec_build(\k . (
       if k < (n / 2) {
         modAdd(subAccess(g, k), modMul(qkpow(gn, k), subAccess(h, k)))
       } else {
-        modSub(subAccess(g, k), modMul(qkpow(gn, k), subAccess(h, k)))
+        let t = k - (n / 2) in 
+        modSub(subAccess(g, t), modMul(qkpow(gn, t), subAccess(h, t)))
       })
     , n))
+  }
+
+let DFT = \v, rev . 
+  let n = vec_length(v),
+      inv_n = inv(n),
+      result = fromSub(DFTAux(toSub(v), n, rev))
+  in if rev {
+    vec_map(result, \x . modMul(x, inv_n))
+  } else {
+    result
   }
 
 let toNum = \v . match v with
@@ -64,8 +77,8 @@ let toNum = \v . match v with
 let main = 
   let v1 = vec_build(\i . (4 - i), 4) in
   let v2 = vec_build(\i . (i * 2), 4) in
-  let fv1 = fromSub(DFT(toSub(v1), 4, False)) in
-  let fv2 = fromSub(DFT(toSub(v2), 4, False)) in
-  let fresult = vec_resize(vec_zipWith(fv1, fv2, modMul), 8) in
-  let result = fromSub(DFT(toSub(fresult), 8, True))
+  let fv1 = DFT(vec_resize(v1, 8), False) in
+  let fv2 = DFT(vec_resize(v2, 8), False) in
+  let fresult = vec_zipWith(fv1, fv2, modMul) in
+  let result = DFT(fresult, True)
   in toNum(result)
