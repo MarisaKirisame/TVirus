@@ -1,0 +1,39 @@
+let next = \n. 1103515245 * n + 12345
+
+let rand = \seed. P((next(seed) / 65535) % 32768, next seed)
+
+data Expr
+    = I()
+    | K()
+    | S()
+    | App(Expr, Expr)
+
+let f = \seed.
+    let p = rand seed in
+        match p with
+        | P(r, nxtS) ->
+            match r % w with
+            | 0 -> P(S(), nxtS)
+            | 1 -> P(K(), nxtS)
+            | 2 -> P(I(), nxtS)
+            | 3 ->
+                let p1 = f(nxtS) in
+                match p1 with
+                | P(e1, nnxtS) ->
+                let p2 = f(nnxtS) in
+                match p2 with
+                | P(e2, nnnxtS) ->
+                    P(App(e1, e2), next(nnnxtS))
+
+let g = \n, seed. match n with
+    | 0 -> f(seed)
+    | n ->
+        let p1 = g(n - 1, seed) in
+        match p1 with
+        | P(e1, nxtS) ->
+        let p2 = g(n - 1, nxtS) in
+        match p2 with
+        | P(e2, nnxtS) ->
+            P(App(e1, e2), next nnxtS)
+
+let main = g(5, 893)
