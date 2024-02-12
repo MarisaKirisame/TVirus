@@ -1,0 +1,73 @@
+data Vector = Empty() | Leaf(Int) | Branch(Int, Vector, Vector, Vector, Vector)
+
+let vec_length = \t . match t with
+| Empty()               -> 0
+| Leaf(_)               -> 1
+| Branch(n, _, _, _, _) -> n
+
+let vec_buildAux = \f, l, r .
+  if (l > r) { Empty() }
+  else {
+    if (l == r) { Leaf(f(l)) }
+    else {
+      let n = r - l + 1 in
+      let d = n % 4 in
+      let s = n / 4 in
+      let s1 = s + if (d >= 1) { 1 } else { 0 } in
+      let s2 = s + if (d >= 2) { 1 } else { 0 } in
+      let s3 = s + if (d >= 3) { 1 } else { 0 }
+      in Branch(
+        n, 
+        vec_buildAux(f, l, l + s1 - 1), 
+        vec_buildAux(f, l + s1, l + s1 + s2 - 1),
+        vec_buildAux(f, l + s1 + s2, l + s1 + s2 + s3 - 1),
+        vec_buildAux(f, l + s1 + s2 + s3, r)
+      )
+    }
+  }
+
+let vec_build = \f, n . vec_buildAux(f, 0, n - 1)
+
+let vec_access = \t, x . match t with
+| Leaf(a) -> a
+| Branch(_, t1, t2, t3, t4) ->
+  let s1 = vec_length(t1) in
+  let s2 = vec_length(t2) in
+  let s3 = vec_length(t3)
+  in if (x < s1) {
+    vec_access(t1, x)
+  } else { if (x < (s1 + s2)) {
+    vec_access(t2, x - s1)
+  } else { if (x < (s1 + s2 + s3)) {
+    vec_access(t3, x - s1 - s2)
+  } else {
+    vec_access(t4, x - s1 - s2 - s3)
+  } } }
+
+let vec_modify = \t, x, f . match t with
+| Leaf(a) -> Leaf(f(a))
+| Branch(n, t1, t2, t3, t4) ->
+  let s1 = vec_length(t1) in
+  let s2 = vec_length(t2) in
+  let s3 = vec_length(t3)
+  in if (x < s1) {
+    Branch(n, vec_modify(t1, x, f), t2, t3, t4)
+  } else { if (x < (s1 + s2)) {
+    Branch(n, t1, vec_modify(t2, x - s1, f), t3, t4)
+  } else { if (x < (s1 + s2 + s3)) {
+    Branch(n, t1, t2, vec_modify(t3, x - s1 - s2, f), t4)
+  } else {
+    Branch(n, t1, t2, t3, vec_modify(t4, x - s1 - s2 - s3, f))
+  } } }
+
+let vec_zipWith = \a, b, f . 
+  let n = vec_length(a) in 
+  vec_build(\i . f(vec_access(a, i), vec_access(b, i)), n)
+
+let vec_resize = \v, n . 
+  let len = vec_length(v) in
+  vec_build(\i . if i < len {
+    vec_access(v, i)
+  } else {
+    0
+  }, n)
