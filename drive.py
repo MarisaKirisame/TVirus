@@ -29,7 +29,12 @@ baseline_backend = {
 }
 
 default = {
-  "program": NONDET("taba", "rbt", "pascal"),
+  "program": NONDET("taba", "rbt", "mergesum", "vector", "randski", "pascal", "pascal2d", "listweird"),
+  "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
+}
+
+default = {
+  "program": NONDET("mergesort"),
   "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
 }
 

@@ -60,6 +60,7 @@ def pp_op(op: PrimOp): Doc = {
   op match
     case PrimOp.EQ    => "=="
     case PrimOp.ADD   => "+"
+    case PrimOp.MUL   => "*"
     case PrimOp.MINUS => "-"
     case PrimOp.LT    => "<"
     case PrimOp.GT    => ">"

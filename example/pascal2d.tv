@@ -29,4 +29,4 @@ let pascal2d =
                             | Cons(x, xs) -> x))
         | ls -> pascal2d(pascal2dNext(ls))
 
-let main = pascal2d(repeat(repeat(1, 200), 200))
+let main = pascal2d(repeat(repeat(1, 100), 100))
