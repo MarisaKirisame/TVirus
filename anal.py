@@ -32,16 +32,17 @@ def plot(result):
     plt.ylabel("space (MB)")
 
 def lr(points):
-    points.sort()
-    x, y = zip(*points)
+    if len(points) > 0:
+        points.sort()
+        x, y = zip(*points)
 
-    coef = np.polyfit([math.log(x_) for x_ in x], [math.log(y_) for y_ in y], 1)
-    poly1d_fn = np.poly1d(coef)
+        coef = np.polyfit([math.log(x_) for x_ in x], [math.log(y_) for y_ in y], 1)
+        poly1d_fn = np.poly1d(coef)
 
-    plt.scatter(1, 1, label="baseline")
-    plt.plot(x, [math.exp(y_) for y_ in poly1d_fn([math.log(x_) for x_ in x])], '--k') #'--k'=black dashed line, 'yo' = yellow circle marker
+        plt.scatter(1, 1, label="baseline")
+        plt.plot(x, [math.exp(y_) for y_ in poly1d_fn([math.log(x_) for x_ in x])], '--k') #'--k'=black dashed line, 'yo' = yellow circle marker
 
-    p(f"10x space = {round(math.exp(poly1d_fn(math.log(1)) - poly1d_fn(math.log(10))), 3)}x time!")
+        p(f"10x space = {round(math.exp(poly1d_fn(math.log(1)) - poly1d_fn(math.log(10))), 3)}x time!")
 
 COUNTER = 0
 def count():
