@@ -39,7 +39,7 @@ default = {
 }
 
 def run(path, ev):
-    os.mkdir(path)
+    os.mkdirs(path)
     for x in flatten_nondet(ev).l:
         subpath = path + "/" + get_time()
         os.mkdir(subpath)

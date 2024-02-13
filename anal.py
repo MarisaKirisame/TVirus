@@ -11,7 +11,7 @@ from dominate.tags import *
 import subprocess
 
 out_path = "output/" + get_time()
-os.mkdir(out_path)
+os.mkdirs(out_path)
 
 aggregate = {}
 
