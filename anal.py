@@ -166,7 +166,7 @@ with doc:
 
 write_to(out_path + "/index.html", str(doc))
 
-if subprocess.run("command -v xxx", shell=True).returncode == 0:
+if subprocess.run("command -v nightly-results", shell=True).returncode == 0:
     print("HERE")
     subprocess.run(f"scp -r -C {out_path} uwplse.org:/var/www/zombie/", shell=True, check=True)
     print(f"""nightly-results url "http://zombie.uwplse.org/{out_dir}" """)
