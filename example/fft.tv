@@ -75,10 +75,11 @@ let toNum = \v . match v with
   combNum(combNum(combNum(combNum(0, v4), v3), v2), v1)
 
 let main = 
-  let v1 = vec_build(\i . (4 - i), 4) in
-  let v2 = vec_build(\i . (i * 2), 4) in
-  let fv1 = DFT(vec_resize(v1, 8), False) in
-  let fv2 = DFT(vec_resize(v2, 8), False) in
+  let size = 4 in
+  let v1 = vec_build(\i . (10 - i), size) in
+  let v2 = vec_build(\i . i, size) in
+  let fv1 = DFT(vec_resize(v1, size * 2), False) in
+  let fv2 = DFT(vec_resize(v2, size * 2), False) in
   let fresult = vec_zipWith(fv1, fv2, modMul) in
   let result = DFT(fresult, True)
   in toNum(result)
