@@ -33,6 +33,11 @@ default = {
   "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
 }
 
+default = {
+  "program": NONDET("taba"),
+  "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
+}
+
 def run(path, ev):
     os.mkdir(path)
     for x in flatten_nondet(ev).l:
@@ -43,6 +48,5 @@ def run(path, ev):
         cmd = f"""python3 inner_drive.py {subpath} {repr(str(sq))} >> {path}/output 2>&1"""
         print(f"running {cmd}")
         subprocess.run(cmd, shell=True, check=False)
-        time.sleep(2)
 
 run("log/" + get_time(), default)
