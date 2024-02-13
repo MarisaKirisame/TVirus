@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import os
 import sys
 import numpy as np
+import math
 
 aggregate = {}
 
@@ -62,16 +63,18 @@ def work(path):
     assert res.config["program"] not in aggregate
     aggregate[res.config["program"]] = (baseline_points, zombie_points)
 
-    x, y = zip(*zombie_points)
-    plt.scatter(x, y, label="zombie")
+    if len(zombie_points) != 0:
+        x, y = zip(*zombie_points)
+        plt.scatter(x, y, label="zombie")
 
-    coef = np.polyfit(x, [1/v for v in y], 1)
-    poly1d_fn = np.poly1d(coef)
+        coef = np.polyfit(x, [1/v for v in y], 1)
+        poly1d_fn = np.poly1d(coef)
 
-    plt.plot(sorted(x), 1/poly1d_fn(sorted(x)), '--k') #'--k'=black dashed line, 'yo' = yellow circle marker
+        plt.plot(sorted(x), 1/poly1d_fn(sorted(x)), '--k') #'--k'=black dashed line, 'yo' = yellow circle marker
 
-    x, y = zip(*baseline_points)
-    plt.scatter(x, y, label="baseline")
+    if len(baseline_points) != 0:
+        x, y = zip(*baseline_points)
+        plt.scatter(x, y, label="baseline")
 
     plt.xscale('log')
     plt.xlabel("space")
@@ -100,18 +103,25 @@ for k in aggregate:
 
     zombie_aggregate += zombie_points
 
-    x, y = zip(*zombie_points)
-    plt.scatter(x, y, label="zombie_" + k)
+    if len(zombie_points) != 0:
+        x, y = zip(*zombie_points)
+        plt.scatter(x, y, label="zombie_" + k)
 
-    x, y = zip(*baseline_points)
-    plt.scatter(x, y, label="baseline")
+    #if len(baseline_points) != 0:
+    #    x, y = zip(*baseline_points)
+    #    plt.scatter(x, y, label="baseline")
 
+zombie_aggregate.sort()
 x, y = zip(*zombie_aggregate)
 
-coef = np.polyfit(x, [1/v for v in y], 1)
+coef = np.polyfit([math.log(x_) for x_ in x], [math.log(y_) for y_ in y], 1)
 poly1d_fn = np.poly1d(coef)
 
-plt.plot(sorted(x), 1/poly1d_fn(sorted(x)), '--k') #'--k'=black dashed line, 'yo' = yellow circle marker
+
+print(f"10x space = {math.exp(poly1d_fn(math.log(1)) - poly1d_fn(math.log(10)))}x time!")
+
+plt.scatter(1, 1, label="baseline")
+plt.plot(x, [math.exp(y_) for y_ in poly1d_fn([math.log(x_) for x_ in x])], '--k') #'--k'=black dashed line, 'yo' = yellow circle marker
 
 plt.xscale('log')
 plt.xlabel("space")
