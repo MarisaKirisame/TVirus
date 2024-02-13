@@ -2,4 +2,4 @@ let zipWith = \f, a, b. match P(a, b) with
 | P(Nil(), Nil()) -> Nil()
 | P(Cons(ah, at), Cons(bh, bt)) -> Cons(f(ah, bh), zipWith(f, at, bt))
 
-let main = let x = Cons(1, Nil()), y = reverse(x), z = map((\i. (i + 1)), y) in zipWith((\a, b. (a + b)), x, z)
+let main = let x = repeat(1, 100000), y = reverse(x), z = map((\i. (i + 1)), y) in zipWith((\a, b. (a + b)), x, z)

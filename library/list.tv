@@ -17,3 +17,7 @@ let length = \l. match l with
 let foldl = \f, z, l. match l with
     | Nil() -> z
     | Cons(x, xs) -> foldl(f, f(z, x), xs)
+
+let list1 = \x. Cons(x, Nil())
+
+let repeat = \x, l. if (l == 0) { list1(x) } else { Cons(x, repeat(x, (l - 1))) }

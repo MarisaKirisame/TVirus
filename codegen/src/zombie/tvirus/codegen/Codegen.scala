@@ -76,7 +76,7 @@ class ZombieBackEnd(limit: Long) extends BackEnd {
 
     struct Init {
       Init() {
-        Trailokya::get_trailokya().each_tc = [](){ 
+        Trailokya::get_trailokya().each_step = [](){ 
           ${if (limit == 0)  {
              "" 
             } else {
@@ -692,7 +692,7 @@ def compile(x: String) = {
       println("fail to write into target-file" + e.getMessage)
   }
   Process("clang-format --style='{ColumnLimit: 200}' -i output.cpp").!
-  Process("cat output.cpp").!
+  //Process("cat output.cpp").!
   println("compiling...")
   run_ok(Process("g++ -g -O3 -std=c++20 -o output output.cpp -lmimalloc"))
   //Process("g++ -g -std=c++20 -o output output.cpp -lmimalloc").!

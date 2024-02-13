@@ -2,7 +2,7 @@ let merge =
     \l. match l with
         | Nil() -> Nil()
         | Cons(x, Nil()) -> Nil()
-        | Cons(x, Cons(y, Nil())) -> Cons(P(x, y), merge(Cons(y, Nil())))
+        | Cons(x, Cons(y, z)) -> Cons(P(x, y), merge(Cons(y, z)))
 
 let add =
     \l1, l2. match l1 with
@@ -29,4 +29,4 @@ let pascal2d =
                             | Cons(x, xs) -> x))
         | ls -> pascal2d(pascal2dNext(ls))
 
-let main = pascal2d(Cons(Cons(1,Cons(2,Nil())), Cons(Cons(3,Cons(4,Nil())), Nil())))
+let main = pascal2d(repeat(repeat(1, 200), 200))

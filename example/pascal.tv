@@ -8,8 +8,4 @@ let pascal = \l. match l with
     | Cons(x, Nil()) -> x
     | xs -> pascal(pascalNext(xs))
 
-let list1 = \x. Cons(x, Nil())
-
-let repeat = \x, l. if (l == 0) { list1(x) } else { Cons(x, repeat(x, (l - 1))) }
-
-let main = pascal(repeat(1, 300000))
+let main = pascal(repeat(1, 100000))

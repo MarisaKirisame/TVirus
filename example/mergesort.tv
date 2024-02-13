@@ -18,8 +18,6 @@ let merge = \a, b. match a with
                                               Cons(ba, merge(a, bs))
                                           }
 
-let list1 = \x. Cons(x, Nil())
-
 let reducehalf = \f, l. match l with
     | Nil() -> Nil()
     | Cons(x, Nil()) -> x
@@ -28,5 +26,4 @@ let reducehalf = \f, l. match l with
 
 let mergesort = \l. reducehalf(merge, map(list1, l))
 
-let repeat = \x, l. if (l == 0) { list1(x) } else { Cons(x, repeat(x, (l - 1))) }
 let main = mergesort(repeat(1, 20000))
