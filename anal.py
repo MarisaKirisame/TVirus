@@ -168,6 +168,6 @@ write_to(out_path + "/index.html", str(doc))
 
 if subprocess.run("command -v xxx", shell=True).returncode == 0:
     subprocess.run(f"scp -r -C {out_path} uwplse.org:/var/www/zombie/", shell=True, check=True)
-    subprocess.run(f"""nightly-results url "http://zombie.uwplse.org/{out_dir}"""", shell=True, check=True)
+    subprocess.run(f"""nightly-results url "http://zombie.uwplse.org/{out_dir}" """, shell=True, check=True)
 else:
     subprocess.run(f"xdg-open {out_path}/index.html", shell=True, check=True)
