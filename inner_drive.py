@@ -31,12 +31,12 @@ def call(x):
 
     subprocess.run(f"{cmd} >> {this_eval_dir}/output 2>&1", shell=True, check=False)
     subprocess.run(f"mv output.cpp {this_eval_dir}/output.cpp", shell=True, check=False)
-    cmd = f"./output >> {this_eval_dir}/output 2>&1"
+    cmd = f"./program >> {this_eval_dir}/output 2>&1"
     if zombie_runtime is not None:
         cmd = f"timeout {zombie_runtime/1e9*20} {cmd}"
     output = subprocess.run(cmd, shell=True, check=False)
     write_to(f"{this_eval_dir}/returncode", str(output.returncode))
-    subprocess.run(f"mv output {this_eval_dir}/program", shell=True, check=False)
+    subprocess.run(f"mv program {this_eval_dir}/program", shell=True, check=False)
 
     r = read(f"{this_eval_dir}")
     if not r.ok:
