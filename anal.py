@@ -170,7 +170,7 @@ if subprocess.run("command -v nightly-results", shell=True).returncode == 0:
     print("HERE")
     print(f"scp -r -C {out_path} uwplse.org:/var/www/zombie/")
     #raise
-    subprocess.run(f"scp -r -C {out_path} uwplse.org:/var/www/zombie/", shell=True, check=True)
+    subprocess.run(f"timeout 20 scp -r -C {out_path} uwplse.org:/var/www/zombie/", shell=True, check=True)
     print(f"""nightly-results url "http://zombie.uwplse.org/{out_dir}" """)
     subprocess.run(f"""nightly-results url "http://zombie.uwplse.org/{out_dir}" """, shell=True, check=True)
 else:
