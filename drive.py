@@ -33,11 +33,6 @@ default = {
   "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
 }
 
-default = {
-  "program": NONDET("taba"),
-  "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
-}
-
 def run(path, ev):
     os.makedirs(path)
     for x in flatten_nondet(ev).l:
