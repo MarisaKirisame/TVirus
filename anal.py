@@ -168,8 +168,7 @@ write_to(out_path + "/index.html", str(doc))
 
 if subprocess.run("command -v nightly-results", shell=True).returncode == 0:
     print("HERE")
-    print(f"""nightly-results url "http://zombie.uwplse.org/{out_dir}" """)
-    subprocess.run(f"""nightly-results url "http://zombie.uwplse.org/{out_dir}" """, shell=True, check=True)
+    subprocess.run(f"""nightly-results publish {out_path}""", shell=True, check=True)
 else:
     print("THERE")
     subprocess.run(f"xdg-open {out_path}/index.html", shell=True, check=True)
