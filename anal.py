@@ -144,6 +144,11 @@ for k in aggregate:
     #    x, y = zip(*baseline_points)
     #    plt.scatter(x, y, label="baseline")
 
+def grab_file(path):
+    new_path = str(count())
+    subprocess.run(f"cp {path} {out_path}/{new_path}", shell=True, check=True)
+    a(os.path.split(path)[1], href=new_path)
+
 doc = dominate.document(title='Dominate your HTML')
 
 with doc:
@@ -163,6 +168,8 @@ with doc:
         write_to(f"{out_path}/{rel_path}", str(page))
         a(program_name, href=rel_path)
         br()
+
+    grab_file(f"{d}/output")
 
 write_to(out_path + "/index.html", str(doc))
 
