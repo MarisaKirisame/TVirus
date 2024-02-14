@@ -145,7 +145,7 @@ for k in aggregate:
     #    plt.scatter(x, y, label="baseline")
 
 def grab_file(path):
-    new_path = str(count())
+    new_path = str(count()) + ".txt"
     subprocess.run(f"cp {path} {out_path}/{new_path}", shell=True, check=True)
     a(os.path.split(path)[1], href=new_path)
 
