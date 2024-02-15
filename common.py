@@ -3,7 +3,8 @@ import json
 import datetime
 
 class Result:
-    def __init__(self, log, config, ok):
+    def __init__(self, path, log, config, ok):
+        self.path = path
         self.log = log
         self.config = config
         self.ok = ok
@@ -50,7 +51,7 @@ def read(path):
         lines = f.readlines()
         assert len(lines) == 1
         config = eval(lines[0])
-    return Result(result, config, ok)
+    return Result(path, result, config, ok)
 
 def get_spacetime(r, use_total_allocated=False):
     start_time = None
