@@ -34,7 +34,7 @@ default = {
 }
 
 default = {
-  "program": NONDET("taba"),
+  "program": NONDET("foldscan"),
   "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
 }
 
