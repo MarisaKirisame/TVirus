@@ -52,6 +52,11 @@ def count():
     COUNTER += 1
     return ret
 
+def grab_file(path):
+    new_path = str(count()) + ".txt"
+    subprocess.run(f"cp {path} {out_path}/{new_path}", shell=True, check=True)
+    a(os.path.split(path)[1], href=new_path)
+
 def flush_plt():
     rel_path = str(count()) + ".png"
     plt.savefig(f"{out_path}/{rel_path}")
@@ -145,11 +150,6 @@ for k in aggregate:
     #if len(baseline_points) != 0:
     #    x, y = zip(*baseline_points)
     #    plt.scatter(x, y, label="baseline")
-
-def grab_file(path):
-    new_path = str(count()) + ".txt"
-    subprocess.run(f"cp {path} {out_path}/{new_path}", shell=True, check=True)
-    a(os.path.split(path)[1], href=new_path)
 
 doc = dominate.document(title='Dominate your HTML')
 
