@@ -18,14 +18,14 @@ let foldl = \f, z, l. match l with
     | Nil() -> z
     | Cons(x, xs) -> foldl(f, f(z, x), xs)
 
+let list1 = \x. Cons(x, Nil())
+
 let scanl = \f, z, l. match l with
-    | Nil() -> z
-    | Cons(x, xs) -> let newX = f(z, x) in Cons(newX, scanl(f, newX, xs))
+    | Nil() -> list1(z)
+    | Cons(x, xs) -> let newX = f(x, z) in Cons(newX, scanl(f, newX, xs))
 
 let foldr = \f, l, z. match l with
     | Nil() -> z
     | Cons(x, xs) -> f(x, foldr(f, xs, z))
-
-let list1 = \x. Cons(x, Nil())
 
 let repeat = \x, l. if (l == 0) { list1(x) } else { Cons(x, repeat(x, (l - 1))) }

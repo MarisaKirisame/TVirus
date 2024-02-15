@@ -1,5 +1,5 @@
 let main = 
   let add = (\a, b . (a + b)),
-      list0 = repeat(1, 100000), 
-      list1 = scanl(add, 0, list0)
-  in foldr(add, list1, 0)
+      l0 = repeat(1, 100000), 
+      l1 = scanl(add, 0, l0)
+  in foldr(add, l1, 0)
