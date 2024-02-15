@@ -83,6 +83,8 @@ def work(path):
         for r in runs:
             space, time = get_spacetime(r)
             p(f"space = {space/1e6}MB, time = {time/1e9}s")
+            grab_file(r.path + "/" + output)
+            br()
             space = space / baseline_space
             time = time / baseline_time
             if r.config["backend"]["name"] == "zombie":
