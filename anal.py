@@ -87,7 +87,7 @@ def work(path):
     with doc:
         for r in runs:
             space, time = get_spacetime(r)
-            p(f"space = {space/1e6}MB, time = {time/1e9}s")
+            span(f"space = {space/1e6}MB, time = {time/1e9}s")
             grab_file(r.path + "/output")
             space = space / baseline_space
             time = time / baseline_time
