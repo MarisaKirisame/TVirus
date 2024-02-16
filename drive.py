@@ -33,8 +33,8 @@ default = {
   "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
 }
 
-default = {
-  "program": NONDET("foldscan"),
+default0 = {
+  "program": NONDET("mergesum"),
   "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
 }
 
