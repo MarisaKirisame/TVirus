@@ -19,6 +19,13 @@ zombie_backend = {
     {"name": "RelToZombie",
      "ratio": NONDET(0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001)})}
 
+zombie_backend = {
+  "name": "zombie",
+  "limit": NONDET(
+    {"name": "no"},
+    {"name": "RelToZombie",
+     "ratio": NONDET(0.5, 0.4, 0.3, 0.2, 0.1)})}
+
 zombie_noevict_backend = {
   "name": "zombie",
   "limit": NONDET({"name": "no"})}
