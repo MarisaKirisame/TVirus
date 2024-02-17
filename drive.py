@@ -40,7 +40,7 @@ default = {
   "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
 }
 
-default0 = {
+default = {
   "program": NONDET("mergesum"),
   "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
 }
