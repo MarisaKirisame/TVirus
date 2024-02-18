@@ -26,4 +26,4 @@ let reducehalf = \f, l. match l with
 
 let mergesort = \l. reducehalf(merge, map(list1, l))
 
-let main = mergesort(repeat(1, 20000))
+let main = mergesort(repeat(1, 50000))

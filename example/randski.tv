@@ -51,4 +51,4 @@ let eval = \ex, i. if (i == 0) { P(ex, i) } else {
     | x -> P(x, i)
 }
 
-let main = match g(3, 777) with | P(x, _) -> eval(x, 100000)
+let main = match g(3, 777) with | P(x, _) -> eval(x, 500000)
