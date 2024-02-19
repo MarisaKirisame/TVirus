@@ -1,3 +1,3 @@
 let taba = \x, y. if (x == 0) { y } else { 1 + taba(x - 1, y) }
 
-let main = taba(500000, 3)
+let main = taba(100000, 3)

@@ -75,7 +75,7 @@ let toNum = \v . match v with
   combNum(combNum(combNum(combNum(0, v4), v3), v2), v1)
 
 let main = 
-  let size = 512 in
+  let size = 256 in
   let v1 = vec_build(\i . (10 - i), size) in
   let v2 = vec_build(\i . i, size) in
   let fv1 = DFT(vec_resize(v1, size * 2), False) in
