@@ -24,7 +24,7 @@ zombie_backend = {
   "limit": NONDET(
     {"name": "no"},
     {"name": "RelToZombie",
-     "ratio": NONDET(0.5, 0.4, 0.3, 0.2, 0.1)})}
+     "ratio": NONDET(0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1)})}
 
 zombie_noevict_backend = {
   "name": "zombie",
@@ -36,12 +36,12 @@ baseline_backend = {
 }
 
 default = {
-  "program": NONDET("mergesum"),
+  "program": NONDET("taba", "rbt", "mergesum", "vector", "randski", "pascal", "pascal2d", "listweird", "mergesort", "fft"),
   "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
 }
 
 default = {
-  "program": NONDET("taba", "rbt", "mergesum", "vector", "randski", "pascal", "pascal2d", "listweird", "mergesort", "fft"),
+  "program": NONDET("mergesum"),
   "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
 }
 

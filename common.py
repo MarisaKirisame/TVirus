@@ -54,16 +54,16 @@ def read(path):
     return Result(path, result, config, ok)
 
 def get_spacetime(r, use_total_allocated=False):
-    start_time = None
-    space = None
+    if len(r.log) == 0:
+        return (None, None)
+    start_time = r.log[0]["timestamp"]
+    space = 0
     time = None
     for l in r.log:
-        if start_time is None:
-            space = 0
-            start_time = l["timestamp"]
-        if use_total_allocated:
-            space = max(space, l["total_allocated"])
-        else:
-            space = max(space, l["allocated"])
+        if l["name"] == "mem":
+            if use_total_allocated:
+                space = max(space, l["total_allocated"])
+            else:
+                space = max(space, l["allocated"])
         time = l["timestamp"] - start_time
     return (space, time)

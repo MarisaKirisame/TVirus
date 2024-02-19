@@ -59,10 +59,80 @@ def grab_file(path):
 
 def flush_plt():
     rel_path = str(count()) + ".png"
+    plt.legend()
     plt.savefig(f"{out_path}/{rel_path}")
     plt.close()
     img(src=rel_path)
     br()
+
+class make_doc(dominate.document):
+    def _add_to_ctx(self): pass # don't add to contexts
+
+def doc_to_path(d):
+    rel_path = str(count()) + ".html"
+    write_to(f"{out_path}/{rel_path}", str(d))
+    return rel_path
+
+def individual_run(r):
+    doc = make_doc(title=r.path)
+    with doc:
+        grab_file(r.path + "/output")
+        largest_uf = []
+        replay = []
+        insert_context = []
+        current_tock_change = []
+        begin_timestamp = None
+
+        for l in r.log:
+            if begin_timestamp is None:
+                begin_timestamp = l["timestamp"]
+            if l["name"] == "largest_uf":
+                largest_uf.append(l)
+            if l["name"] == "replay_begin" or l["name"] == "replay_end":
+                replay.append(l)
+            if l["name"] == "insert_context":
+                insert_context.append(l)
+            if l["name"] == "current_tock_change":
+                current_tock_change.append(l)
+
+        if len(largest_uf) > 0:
+            plt.plot([(l["timestamp"] - begin_timestamp) / 1e9 for l in largest_uf], [l["total_uf_root_count"] for l in largest_uf], label="uf root count")
+            plt.plot([(l["timestamp"] - begin_timestamp) / 1e9 for l in largest_uf], [l["total_uf_node_count"] for l in largest_uf], label="uf node count")
+            plt.xlabel("time")
+            plt.ylim(ymin=0)
+            flush_plt()
+
+            plt.plot([(l["timestamp"] - begin_timestamp) / 1e9 for l in largest_uf], [l["value"] for l in largest_uf], label="largest uf")
+            plt.xlabel("time")
+            plt.ylim(ymin=0)
+            flush_plt()
+
+            plt.plot([(l["timestamp"] - begin_timestamp) / 1e9 for l in largest_uf], [l["value"] for l in largest_uf], label="largest uf")
+            plt.xlabel("time")
+            plt.yscale('log')
+            plt.ylim(ymin=1)
+            flush_plt()
+
+        if len(replay) > 0:
+            plt.plot([(l["timestamp"] - begin_timestamp) / 1e9 for l in replay], [l["depth"] for l in replay], label="replay depth")
+            plt.xlabel("time")
+            flush_plt()
+
+        if len(insert_context) > 0:
+            plt.plot([(l["timestamp"] - begin_timestamp) / 1e9 for l in insert_context], [l["time_taken"] for l in insert_context], label="individual context time taken")
+            plt.xlabel("time")
+            flush_plt()
+
+            plt.plot([(l["timestamp"] - begin_timestamp) / 1e9 for l in insert_context], [l["splaylist_size"] for l in insert_context], label="splaylist size")
+            plt.xlabel("time")
+            flush_plt()
+
+        if len(current_tock_change) > 0:
+            plt.plot([(l["timestamp"] - begin_timestamp) / 1e9 for l in current_tock_change], [l["value"] for l in current_tock_change], label="current_tock")
+            plt.xlabel("time")
+            flush_plt()
+
+    return doc_to_path(doc)
 
 def work(path):
     runs = []
@@ -83,12 +153,11 @@ def work(path):
     zombie_points = []
     baseline_points = []
 
-    doc = dominate.document(title='Dominate your HTML')
+    doc = make_doc(title=path)
     with doc:
         for r in runs:
             space, time = get_spacetime(r)
-            span(f"space = {space/1e6}MB, time = {time/1e9}s")
-            grab_file(r.path + "/output")
+            a(f"space = {space/1e6}MB, time = {time/1e9}s", href=individual_run(r))
             br()
             space = space / baseline_space
             time = time / baseline_time
@@ -121,11 +190,10 @@ def work(path):
         plt.yscale('log')
         plt.ylabel("time")
 
-        plt.legend()
         plt.title(res.config["program"])
         flush_plt()
 
-    return (res.config["program"], doc)
+    return (res.config["program"], doc_to_path(doc))
 
 if len(sys.argv) > 1:
     d = sys.argv[1]
@@ -151,7 +219,7 @@ for k in aggregate:
     #    x, y = zip(*baseline_points)
     #    plt.scatter(x, y, label="baseline")
 
-doc = dominate.document(title='Dominate your HTML')
+doc = make_doc(title=d)
 
 with doc:
     lr(zombie_aggregate)
@@ -162,13 +230,10 @@ with doc:
     plt.yscale('log')
     plt.ylabel("time")
 
-    plt.legend()
     flush_plt()
 
-    for program_name, page in subpages:
-        rel_path = str(count()) + ".html"
-        write_to(f"{out_path}/{rel_path}", str(page))
-        a(program_name, href=rel_path)
+    for program_name, page_path in subpages:
+        a(program_name, href=page_path)
         br()
 
     grab_file(f"{d}/output")
@@ -176,8 +241,6 @@ with doc:
 write_to(out_path + "/index.html", str(doc))
 
 if subprocess.run("command -v nightly-results", shell=True).returncode == 0:
-    print("HERE")
     subprocess.run(f"""nightly-results publish {out_path}""", shell=True, check=True)
 else:
-    print("THERE")
     subprocess.run(f"xdg-open {out_path}/index.html", shell=True, check=True)

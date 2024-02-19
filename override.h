@@ -129,18 +129,19 @@ struct record_t {
     uint64_t total_allocated;
 };
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(record_t, timestamp, allocated, total_allocated)
-std::fstream fs(log_path, std::ios::out);
-
-bool record() {
+bool record(std::fstream& fs) {
   if (std::chrono::system_clock::now() - record_last_time < std::chrono::milliseconds(100)) {
     return false;
   } else {
     record_last_time = std::chrono::system_clock::now();
-    auto ts = std::chrono::duration_cast<std::chrono::nanoseconds>(record_last_time.time_since_epoch()).count();
-    record_t rec({ts, allocated, total_allocated});
-    nlohmann::json data(rec);
-    fs << data << std::endl;
+    int64_t ts = std::chrono::duration_cast<std::chrono::nanoseconds>(record_last_time.time_since_epoch()).count();
+    nlohmann::json j;
+    j["name"] = "mem";
+    j["timestamp"] = ts;
+    j["allocated"] = allocated;
+    j["total_allocated"] = total_allocated;
+    j["max_allocated"] = allocated_highest;
+    fs << j << std::endl;
     return true;
   }
 }

@@ -76,6 +76,7 @@ class ZombieBackEnd(limit: Long) extends BackEnd {
 
     struct Init {
       Init() {
+        log_to = std::fstream(log_path, std::ios::out);
         Trailokya::get_trailokya().each_step = [](){ 
           ${if (limit == 0)  {
              "" 
@@ -84,7 +85,7 @@ class ZombieBackEnd(limit: Long) extends BackEnd {
                 Trailokya::get_trailokya().reaper.murder();
               }"""
             }}
-          record();
+          record(log_to);
         };
       }
     } init;
@@ -147,6 +148,7 @@ class NoZombieBackEnd extends BackEnd {
   }
   def header: String = {
     s"""
+    std::fstream fs(log_path, std::ios::out);
     template<typename X>
     X fail() {
       assert(false);
@@ -227,7 +229,7 @@ class NoZombieBackEnd extends BackEnd {
       auto tcsp = ToTCSP(f());
       while (!tcsp.t->is_return()) {
         tcsp.t = tcsp.t->from_tc()();
-        record();
+        record(fs);
       }
       return tcsp.t->from_return();
     }
