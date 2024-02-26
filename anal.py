@@ -9,6 +9,7 @@ import math
 import dominate
 from dominate.tags import *
 import subprocess
+import random
 
 out_dir = get_time()
 out_path = "output/" + out_dir
@@ -81,19 +82,26 @@ def individual_run(r):
         replay = []
         insert_context = []
         current_tock_change = []
+        evict = []
         begin_timestamp = None
 
         for l in r.log:
             if begin_timestamp is None:
                 begin_timestamp = l["timestamp"]
-            if l["name"] == "largest_uf":
+            elif l["name"] == "largest_uf":
                 largest_uf.append(l)
-            if l["name"] == "replay_begin" or l["name"] == "replay_end":
+            elif l["name"] == "replay_begin" or l["name"] == "replay_end":
                 replay.append(l)
-            if l["name"] == "insert_context":
+            elif l["name"] == "insert_context":
                 insert_context.append(l)
-            if l["name"] == "current_tock_change":
+            elif l["name"] == "current_tock_change":
                 current_tock_change.append(l)
+            elif l["name"] == "evict":
+                evict.append(l)
+
+        if len(evict) > 100:
+            evict = random.sample(evict, 100)
+            evict.sort(key = lambda l: l["timestamp"])
 
         if len(largest_uf) > 0:
             plt.plot([(l["timestamp"] - begin_timestamp) / 1e9 for l in largest_uf], [l["total_uf_root_count"] for l in largest_uf], label="uf root count")
@@ -130,6 +138,17 @@ def individual_run(r):
         if len(current_tock_change) > 0:
             plt.plot([(l["timestamp"] - begin_timestamp) / 1e9 for l in current_tock_change], [l["value"] for l in current_tock_change], label="current_tock")
             plt.xlabel("time")
+            flush_plt()
+
+        if len(evict) > 0:
+            plt.scatter([(l["timestamp"] - begin_timestamp) / 1e9 for l in evict], [l["ecd"] for l in evict], label="ecd")
+            plt.xlabel("time")
+            plt.yscale("log")
+            flush_plt()
+
+            plt.scatter([(l["timestamp"] - begin_timestamp) / 1e9 for l in evict], [l["cost"] for l in evict], label="cost")
+            plt.xlabel("time")
+            plt.yscale("log")
             flush_plt()
 
     return doc_to_path(doc)

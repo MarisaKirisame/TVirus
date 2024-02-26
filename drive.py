@@ -5,6 +5,11 @@ import os
 import time
 import subprocess
 
+debug_zombie_backend = {
+  "name": "zombie",
+  "limit": {"name": "no"},
+}
+
 zombie_backend = {
   "name": "zombie",
   "limit": NONDET(
@@ -36,14 +41,21 @@ baseline_backend = {
 }
 
 default = {
-  "program": NONDET("mergesum"),
+  "program": NONDET("taba", "rbt", "mergesum", "vector", "randski", "pascal", "pascal2d", "listweird", "mergesort", "fft"),
   "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
 }
 
 default = {
-  "program": NONDET("taba", "rbt", "mergesum", "vector", "randski", "pascal", "pascal2d", "listweird", "mergesort", "fft"),
+  "program": NONDET("mergesum"),
   "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
 }
+
+debug_default = {
+  "program": NONDET("debug"),
+  "backend": QUOTE(NONDET(debug_zombie_backend))
+}
+
+default = debug_default
 
 def run(path, ev):
     os.makedirs(path)

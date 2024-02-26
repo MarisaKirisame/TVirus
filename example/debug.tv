@@ -1,32 +1,11 @@
-let merge =
-    \l. match l with
-        | Nil() -> Nil()
-        | Cons(x, Nil()) -> Nil()
-        | Cons(x, Cons(y, Nil())) -> Cons(P(x, y), merge(Cons(y, Nil())))
+let pascalNext = \l. match l with
+    | Nil() -> Nil()
+    | Cons(x, Nil()) -> Nil()
+    | Cons(x, Cons(y, xs)) -> Cons(x + y, pascalNext(xs))
 
-let add =
-    \l1, l2. match l1 with
-             | Nil() -> Nil()
-             | Cons(x, xs) -> match l2 with
-                              | Nil() -> Nil()
-                              | Cons(y, ys) -> Cons(x + y, add(xs, ys))
+let pascal = \l. match l with
+    | Nil() -> 0
+    | Cons(x, Nil()) -> x
+    | xs -> pascal(pascalNext(xs))
 
-let pascal2dNext = 
-    \m. match m with
-        | Nil() -> Nil()
-        | Cons(l, Nil()) -> Nil()
-        | Cons(l1, Cons(l2, ls)) -> Cons(add(map((\p. match p with
-                                                      | P(x, y) -> x + y), merge(l1))
-                                            ,map((\p. match p with
-                                                      | P(x, y) -> x + y), merge(l2)))
-                                        ,pascal2dNext(Cons(l2, ls)))
-
-let pascal2d =
-    \m. match m with
-        | Nil() -> 0
-        | Cons(l, Nil()) -> (match l with
-                            | Nil() -> 0
-                            | Cons(x, xs) -> x)
-        | ls -> pascal2d(pascal2dNext(ls))
-
-let main = pascal2d(Cons(Cons(1,Cons(2,Nil())), Cons(Cons(3,Cons(4,Nil())), Nil())))
+let main = pascal(repeat(1, 7))
