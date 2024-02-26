@@ -14,6 +14,7 @@ unformatted.cpp
 output
 a.cpp
 result.png
+*.svg
 # Log file
 *.log
 
