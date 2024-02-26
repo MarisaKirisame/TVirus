@@ -62,10 +62,16 @@ class Graph:
             if neighbor.cost is not None and neighbor.cost.get_root() not in counted:
                 counted.add(neighbor.cost.get_root())
                 value += neighbor.cost.value()
+            if neighbor.backward_uf.get_root() not in counted:
+                counted.add(neighbor.backward_uf.get_root())
+                value += neighbor.backward_uf.value()
         for neighbor in self.backedges[n]:
             if neighbor.cost is not None and neighbor.cost.get_root() not in counted:
                 counted.add(neighbor.cost.get_root())
                 value += neighbor.cost.value()
+            if neighbor.forward_uf.get_root() not in counted:
+                counted.add(neighbor.forward_uf.get_root())
+                value += neighbor.forward_uf.value()
         return value
 
     def evict_node(self, n):
@@ -83,6 +89,7 @@ class Graph:
         self.max_cost = max(self.max_cost, n.cost.value())
         self.alive.remove(n)
         self.last_evicted = n
+        return n.cost.value()
 
     def evict(self):
         assert len(self.alive) > 0
@@ -94,7 +101,8 @@ class Graph:
             if min_cost is None or cost < min_cost:
                 n = candidate
                 min_cost = cost
-        self.evict_node(n)
+        evicted_cost = self.evict_node(n)
+        assert min_cost == evicted_cost
 
     def evict_to(self, limit):
         while len(self.alive) > limit:
@@ -107,6 +115,7 @@ size = 20
 pascal = True
 
 if pascal:
+    prev_l = None
     l = [g.node() for _ in range(size)]
 
     for _ in range(1, size):
@@ -115,6 +124,13 @@ if pascal:
             g.edge(l[i], next_l[i])
             g.edge(l[i-1], next_l[i])
             g.edge(l[i+1], next_l[i])
+        # turning it on make very ugly svg and we already can handle this case.
+        if False and prev_l is not None:
+            for i in range(1, size - 1):
+                g.edge(prev_l[i], next_l[i])
+                g.edge(prev_l[i-1], next_l[i])
+                g.edge(prev_l[i+1], next_l[i])
+        prev_l = l
         l = next_l
 else:
     l = [g.node() for _ in range(size)]
