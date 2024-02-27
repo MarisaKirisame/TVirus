@@ -45,15 +45,17 @@ default = {
   "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
 }
 
-#default = {
-#  "program": NONDET("mergesum"),
-#  "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
-#}
+default = {
+  "program": NONDET("taba"),
+  "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
+}
 
 debug_default = {
   "program": NONDET("debug"),
   "backend": QUOTE(NONDET(debug_zombie_backend))
 }
+
+#default = debug_default
 
 def run(path, ev):
     os.makedirs(path)

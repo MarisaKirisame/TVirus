@@ -160,9 +160,10 @@ def work(path):
     baseline_time = None
     baseline_space = None
 
+    utc = True
     for r in runs:
         if r.config["backend"]["name"] == "baseline":
-            baseline_space, baseline_time = get_spacetime(r)
+            baseline_space, baseline_time = get_spacetime(r, use_total_allocated=utc)
 
     zombie_points = []
     baseline_points = []
@@ -178,12 +179,10 @@ def work(path):
             if r.config["backend"]["name"] == "zombie":
                 zombie_points.append((space, time))
             else:
+                space, time = get_spacetime(r, use_total_allocated=utc)
+                space = space / baseline_space
+                time = time / baseline_time
                 baseline_points.append((space, time))
-                #space, time = get_spacetime(r, use_total_allocated=True)
-                #print(f"space = {space/1e6}MB, time = {time/1e9}s")
-                #space = space / zombie_baseline_space
-                #time = time / zombie_baseline_time
-                #baseline_points.append((space, time))
 
         assert res.config["program"] not in aggregate
         aggregate[res.config["program"]] = (baseline_points, zombie_points)

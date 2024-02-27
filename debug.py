@@ -69,6 +69,7 @@ def draw(limit):
     graph = pydot.Dot("my_graph")
 
     for ic in insert_context:
+        print(ic)
         if ic["t"] not in inserted:
             nodes.append(ic)
             inserted.add(ic["t"])
@@ -108,8 +109,9 @@ def draw(limit):
 
     graph.write_svg(f"{out_path}/{count()}.svg")
 
+print(evict)
 for e in evict:
     print(e)
-draw(100)
-#for i in range(len(distinct_evict)):
-#    draw(i)
+#draw(100)
+for i in range(len(distinct_evict)):
+    draw(i)
