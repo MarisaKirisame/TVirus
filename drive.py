@@ -45,10 +45,10 @@ default = {
   "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
 }
 
-default = {
-  "program": NONDET("taba"),
-  "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
-}
+#default = {
+#  "program": NONDET("taba"),
+#  "backend": QUOTE(NONDET(baseline_backend, zombie_backend))
+#}
 
 debug_default = {
   "program": NONDET("debug"),
