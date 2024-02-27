@@ -141,11 +141,6 @@ def individual_run(r):
             flush_plt()
 
         if len(evict) > 0:
-            plt.scatter([(l["timestamp"] - begin_timestamp) / 1e9 for l in evict], [l["ecd"] for l in evict], label="ecd")
-            plt.xlabel("time")
-            plt.yscale("log")
-            flush_plt()
-
             plt.scatter([(l["timestamp"] - begin_timestamp) / 1e9 for l in evict], [l["cost"] for l in evict], label="cost")
             plt.xlabel("time")
             plt.yscale("log")
