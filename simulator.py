@@ -54,21 +54,14 @@ class Graph:
         self.backedges[r].add(l)
 
     def cost(self, n):
-        assert n is not None
         counted = set()
         value = 1
         assert n.cost is None
         for neighbor in self.edges[n]:
-            if neighbor.cost is not None and neighbor.cost.get_root() not in counted:
-                counted.add(neighbor.cost.get_root())
-                value += neighbor.cost.value()
             if neighbor.backward_uf.get_root() not in counted:
                 counted.add(neighbor.backward_uf.get_root())
                 value += neighbor.backward_uf.value()
         for neighbor in self.backedges[n]:
-            if neighbor.cost is not None and neighbor.cost.get_root() not in counted:
-                counted.add(neighbor.cost.get_root())
-                value += neighbor.cost.value()
             if neighbor.forward_uf.get_root() not in counted:
                 counted.add(neighbor.forward_uf.get_root())
                 value += neighbor.forward_uf.value()
@@ -78,13 +71,11 @@ class Graph:
         assert isinstance(n, Node)
         assert n.cost is None
         n.cost = UF(1)
+        n.cost.merge(n.backward_uf)
+        n.cost.merge(n.forward_uf)
         for neighbor in self.edges[n]:
-            if neighbor.cost is not None:
-                n.cost.merge(neighbor.cost)
             n.cost.merge(neighbor.backward_uf)
         for neighbor in self.backedges[n]:
-            if neighbor.cost is not None:
-                n.cost.merge(neighbor.cost)
             n.cost.merge(neighbor.forward_uf)
         self.max_cost = max(self.max_cost, n.cost.value())
         self.alive.remove(n)
