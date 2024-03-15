@@ -25,21 +25,12 @@ class UF:
             lhs.parent = rhs
             rhs.v += lhs.v
 
-class Stat:
-    def __init__(self, cost, alive):
-        self.cost = cost
-        self.alive = alive
-
-    def __add__(self, rhs):
-        return Stat(self.cost + rhs.cost, self.alive + rhs.alive)
-
-    def __repr__(self):
-        return repr((self.cost, self.alive))
-
 class Node:
     def __init__(self, name):
         self.name = name
-        self.cost = UF(Stat(1, 1))
+        self.cost = None
+        self.forward_uf = UF(0)
+        self.backward_uf = UF(0)
 
 class Graph:
     def __init__(self):
@@ -64,39 +55,50 @@ class Graph:
 
     def cost(self, n):
         counted = set()
-        counted.add(n.cost.get_root())
-        value = n.cost.value()
+        value = 1
+        assert n.cost is None
         for neighbor in self.edges[n]:
-            if neighbor.cost.get_root() not in counted:
-                counted.add(neighbor.cost.get_root())
-                value += neighbor.cost.value()
+            if neighbor.backward_uf.get_root() not in counted:
+                counted.add(neighbor.backward_uf.get_root())
+                value += neighbor.backward_uf.value()
         for neighbor in self.backedges[n]:
-            if neighbor.cost.get_root() not in counted:
-                counted.add(neighbor.cost.get_root())
-                value += neighbor.cost.value()
-        return value.cost / (value.alive ** 0.5)
+            if neighbor.forward_uf.get_root() not in counted:
+                counted.add(neighbor.forward_uf.get_root())
+                value += neighbor.forward_uf.value()
+        return value
 
     def evict_node(self, n):
         assert isinstance(n, Node)
+        assert n.cost is None
+        n.cost = UF(1)
+        n.cost.merge(n.backward_uf)
+        n.cost.merge(n.forward_uf)
         for neighbor in self.edges[n]:
-            n.cost.merge(neighbor.cost)
+            n.cost.merge(neighbor.backward_uf)
         for neighbor in self.backedges[n]:
-            n.cost.merge(neighbor.cost)
-        cost = n.cost.value().cost / (n.cost.value().alive ** 0.5)
-        n.cost.value().alive -= 1
-        self.max_cost = max(self.max_cost, cost)
+            n.cost.merge(neighbor.forward_uf)
+        self.max_cost = max(self.max_cost, n.cost.value())
         self.alive.remove(n)
         self.last_evicted = n
-        return cost
+        return n.cost.value()
 
     def evict(self):
         assert len(self.alive) > 0
+        flag = False
         n = None
         min_cost = None
         for candidate in self.alive:
             assert candidate is not None
             cost = self.cost(candidate)
-            if min_cost is None or cost < min_cost:
+            if candidate.forward_uf.get_root() == candidate.backward_uf.get_root():
+                if flag == False:
+                    n = candidate
+                    min_cost = cost
+                else:
+                    if min_cost is None or cost < min_cost:
+                        n = candidate
+                        min_cost = cost
+            if flag == False and (min_cost is None or cost < min_cost):
                 n = candidate
                 min_cost = cost
         evicted_cost = self.evict_node(n)
@@ -104,12 +106,11 @@ class Graph:
 
     def evict_to(self, limit):
         while len(self.alive) > limit:
-            print(len(self.alive), self.max_cost)
             self.evict()
 
 g = Graph()
 
-size = 30
+size = 7
 
 pascal = False
 
@@ -143,7 +144,7 @@ else:
             g.edge(l[i], next_l[i])
         l = next_l
 
-g.evict_to(300)
+g.evict_to(8)
 print(g.max_cost)
 
 edge_to_name = {}
